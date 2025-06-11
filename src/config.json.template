@@ -1,0 +1,10 @@
+{
+  "userId": "YOUR_USER_ID",
+  "projectName": "Your Project Name",
+  "projectDescription": "Optional: A description for your project.",
+  "reportsDir": "./test-reports",
+  "name": "Optional: Test Run Name",
+  "environment": "Optional: Environment (e.g., development, staging, production)",
+  "branch": "Optional: Git Branch Name",
+  "commit": "Optional: Git Commit Hash"
+} 

@@ -1,3 +1,12 @@
+node_modules/
+dist/
+build/
+coverage/
+logs/
+tmp/
+.idea/
+.DS_Store
+*.sqlite
 config.json
 testrix.sqlite
 README-draft.md

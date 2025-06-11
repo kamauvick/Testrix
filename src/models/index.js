@@ -5,7 +5,7 @@ console.log('Initializing Sequelize...');
 // Initialize Sequelize with SQLite
 const sequelize = new Sequelize({
   dialect: 'sqlite',
-  storage: path.join(__dirname, '../database.sqlite'),
+  storage: path.join(__dirname, '../../database.sqlite'),
   logging: console.log // Enable logging
 });
 
@@ -52,7 +52,7 @@ const initDatabase = async () => {
     
     // Sync all models
     console.log('Synchronizing database models...');
-    await sequelize.sync({ force: false }); // Don't force recreate tables
+    await sequelize.sync({ alter: true }); // Use alter: true to update schema without dropping data
     console.log('Database synchronized successfully.');
   } catch (error) {
     console.error('Database initialization error:', error);
