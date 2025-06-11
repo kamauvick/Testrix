@@ -10,3 +10,11 @@
 /test-logs
 
 node_modules/
+.DS_Store
+.idea/
+.vscode/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
