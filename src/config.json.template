@@ -1,5 +1,5 @@
 {
-  "serverApiUrl": "http://localhost:3000/api/test-reports",
+  "serverApiUrl": "http://localhost:4000/api/submit-test-reports",
   "userId": "YOUR_USER_ID",
   "projectName": "Your Project Name",
   "projectDescription": "Optional: A description for your project.",

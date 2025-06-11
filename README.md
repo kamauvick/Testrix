@@ -28,7 +28,7 @@ npm install -g testrix-cli
 
     ```json
     {
-      "serverApiUrl": "http://localhost:3000/api/test-reports",
+      "serverApiUrl": "http://localhost:4000/api/test-reports",
       "userId": "YOUR_USER_ID",
       "projectName": "Your Project Name",
       "projectDescription": "Optional: A description for your project.",
@@ -40,7 +40,7 @@ npm install -g testrix-cli
     }
     ```
 
-    *   `serverApiUrl`: The URL of your server's API endpoint where test reports will be sent (e.g., `http://your-server.com/api/test-reports`).
+    *   `serverApiUrl`: The URL of your server's API endpoint where test reports will be sent as a JSON payload (e.g., `http://your-server.com/api/test-reports`).
     *   `userId`: A unique identifier for the user initiating the test run. This will be sent to your server.
     *   `projectName`: The name of the project associated with the test run.
     *   `reportsDir`: The local directory where your test report files are located. This should be an absolute path or a path relative to where you execute the `testrix` command. Ensure the CLI has read access to this directory.

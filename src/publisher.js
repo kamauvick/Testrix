@@ -101,17 +101,25 @@ async function publishTestReports(config) {
     const payload = {
         userId: config.userId,
         projectName: config.projectName,
-        projectDescription: config.projectDescription,
+        projectDescription: config.projectDescription || null,
         name: config.name || 'Test Run',
-        environment: config.environment,
-        branch: config.branch,
-        commit: config.commit,
+        environment: config.environment || null,
+        branch: config.branch || null,
+        commit: config.commit || null,
         totalTests: summary.total,
         passedTests: summary.passed,
         failedTests: summary.failed,
         skippedTests: summary.skipped,
         totalDuration: summary.duration,
-        testCases: allTestCases,
+        testCases: allTestCases.map(testCase => ({
+            name: testCase.name,
+            status: testCase.status,
+            duration: testCase.duration,
+            errorMessage: testCase.errorMessage || testCase.error || null,
+            errorStack: testCase.errorStack || null,
+            file: testCase.file || null,
+            suite: testCase.suite || null
+        })),
         status: summary.failed > 0 ? 'failed' : 'passed'
     };
 

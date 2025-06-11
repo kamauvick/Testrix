@@ -1,6 +1,5 @@
 {
-  "serverApiUrl": "http://localhost:3000/api/test-reports",
-  "publishUrl": "http://localhost:4000/api/test-runs",
+  "serverApiUrl": "http://localhost:4000/api/submit-test-reports",
   "userId": "5772534a-eb06-4c85-8794-9f31e8764aab",
   "projectName": "api-tests",
   "projectDescription": "API Test Suite",
