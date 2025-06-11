@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parseJUnit, parseHTML, parseExcel } = require('./parsers');
-const { sequelize, Project, TestRun, TestCase, initDatabase } = require('./models');
+const { sequelize, Project, TestRun, TestCase, initDatabase, User } = require('./models');
 
 /**
  * Publishes test reports based on the provided configuration.
@@ -48,9 +48,25 @@ async function publishTestReports(config) {
         console.log('Found existing project:', project.id);
     }
 
+    console.log('Looking up user:', config.userId);
+    let user = await User.findOne({ where: { username: config.userId } });
+    if (!user) {
+        console.log('User not found, creating new user with placeholder details...');
+        user = await User.create({
+            username: config.userId,
+            name: config.userId,
+            email: `${config.userId}@example.com`, // Placeholder email
+            role: 'User',
+            status: 'Active'
+        });
+        console.log('User created:', user.id);
+    } else {
+        console.log('Found existing user:', user.id);
+    }
+
     console.log('Creating test run...');
     const testRun = await TestRun.create({
-        userId: config.userId,
+        userId: user.id,
         projectId: project.id,
         name: config.name || 'Test Run',
         status: 'running',

@@ -52,7 +52,7 @@ const initDatabase = async () => {
     
     // Sync all models
     console.log('Synchronizing database models...');
-    await sequelize.sync({ alter: true }); // Use alter: true to update schema without dropping data
+    await sequelize.sync({ force: false }); // Create tables if they don't exist, without dropping existing ones
     console.log('Database synchronized successfully.');
   } catch (error) {
     console.error('Database initialization error:', error);
