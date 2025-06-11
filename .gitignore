@@ -8,3 +8,5 @@
 /test-reports
 /test-coverage
 /test-logs
+
+node_modules/
