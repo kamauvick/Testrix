@@ -1,0 +1,11 @@
+{
+  "serverApiUrl": "http://localhost:3000/api/test-reports",
+  "publishUrl": "http://localhost:4000/api/test-runs",
+  "userId": "5772534a-eb06-4c85-8794-9f31e8764aab",
+  "projectName": "api-tests",
+  "projectDescription": "API Test Suite",
+  "reportsDir": "/Users/kamau/Documents/projects/learn/playwright-dash/junit-reports",
+  "environment": "staging",
+  "branch": "main",
+  "commit": "latest"
+} 

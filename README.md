@@ -1,15 +1,15 @@
 # Testrix CLI
 
-**Testrix CLI** is a test results publisher for CI/CD pipelines and local environments. It parses test reports in JUnit, XML, HTML, or Excel format and uploads the results to a database for tracking, analytics, or dashboards.
+**Testrix CLI** is a command-line tool designed to parse test reports (JUnit, XML, HTML, Excel) and publish the results to a specified server API. This allows for centralized tracking, analytics, and dashboards for your CI/CD pipelines and local environments.
 
 ---
 
 ## 📦 Features
 
-- ✅ Supports `JUnit`, `.xml`, `.html`, and `.xls/.xlsx` test reports
-- 📁 Parses test case results including status, duration, errors
+- ✅ Parses `JUnit`, `.xml`, `.html`, and `.xls/.xlsx` test reports
+- 📁 Extracts test case results including status, duration, and error details
 - 📊 Aggregates summary statistics (total, passed, failed, skipped)
-- 🛠️ Stores data in a relational database (using Sequelize ORM)
+- 🌐 **Publishes results to a configurable server API endpoint**
 - 🧪 Designed for integration with CI tools like GitLab CI, GitHub Actions, Jenkins, etc.
 
 ---
@@ -24,12 +24,14 @@ npm install -g testrix-cli
 
 ## 🛠️ Usage
 
-1.  **Create a configuration file**: Create a `config.json` file in your project root, or a specified path. You can use the `config.json.template` as a starting point.
+1.  **Create a configuration file**: Create a `config.json` file in your project root, or a specified path. You can use the `src/config.json.template` as a starting point.
 
     ```json
     {
+      "serverApiUrl": "http://localhost:3000/api/test-reports",
       "userId": "YOUR_USER_ID",
       "projectName": "Your Project Name",
+      "projectDescription": "Optional: A description for your project.",
       "reportsDir": "./test-reports",
       "name": "Optional: Test Run Name",
       "environment": "Optional: Environment (e.g., development, staging, production)",
@@ -37,6 +39,11 @@ npm install -g testrix-cli
       "commit": "Optional: Git Commit Hash"
     }
     ```
+
+    *   `serverApiUrl`: The URL of your server's API endpoint where test reports will be sent (e.g., `http://your-server.com/api/test-reports`).
+    *   `userId`: A unique identifier for the user initiating the test run. This will be sent to your server.
+    *   `projectName`: The name of the project associated with the test run.
+    *   `reportsDir`: The local directory where your test report files are located. This should be an absolute path or a path relative to where you execute the `testrix` command. Ensure the CLI has read access to this directory.
 
 2.  **Run Testrix CLI**: Execute the `testrix` command, optionally providing the path to your config file.
 
@@ -46,29 +53,20 @@ npm install -g testrix-cli
 
     If no path is provided, `testrix` will look for `config.json` in the current working directory.
 
-    **Note on `reportsDir`**: The `reportsDir` in your `config.json` should be an absolute path or a path relative to where you execute the `testrix` command. Ensure the CLI has read access to this directory.
-
 ---
 
 ## Project Structure
 
 ```
 .github/
-config.json
-database.sqlite
 cli.js
-src/
-  ├── config.json.template
-  ├── parsers.js
-  ├── publisher.js
-  └── models/
-      ├── ApiKey.js
-      ├── index.js
-      ├── Project.js
-      ├── TestCase.js
-      ├── TestRun.js
-      └── User.js
 package.json
 package-lock.json
 README.md
+src/
+  ├── config.json.template
+  ├── parsers.js
+  └── publisher.js
 ```
+
+**Note**: Testrix CLI no longer manages a local SQLite database directly. It sends data to your configured server API, which is responsible for database storage.
