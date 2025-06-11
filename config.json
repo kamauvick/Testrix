@@ -1,0 +1,10 @@
+{
+  "userId": "5772534a-eb06-4c85-8794-9f31e8764aab",
+  "projectName": "My Project",
+  "projectDescription": "Example run",
+  "reportsDir": "./Users/kamau/Documents/projects/learn/playwright-dash/junit-reports/junit.xml",
+  "name": "CI Test Run",
+  "environment": "staging",
+  "branch": "main",
+  "commit": "abc123"
+}
