@@ -1,20 +1,20 @@
-const fs = require('fs');
 const path = require('path');
+const fs = require('fs');
 const { parseJUnit, parseHTML, parseExcel } = require('./parsers');
-const fetch = require('node-fetch'); // Ensure you have installed node-fetch: npm install node-fetch
-
 /**
  * Publishes test reports by sending them to a specified server API.
  * @param {object} config - The configuration object.
  * @param {string} config.serverApiUrl - The URL of the server API endpoint to send test reports.
  * @param {string} config.userId - The user ID for the test run.
- * @param {string} config.projectName - The name of the project.
- * @param {string} [config.projectDescription] - Description of the project.
+ * @param {string} config.projectId - The UUID of the project (REQUIRED by backend).
+ * @param {string} config.apiKey - The API key for authentication (REQUIRED by backend).
  * @param {string} config.reportsDir - Directory containing test reports.
  * @param {string} [config.name] - Name of the test run.
  * @param {string} [config.environment] - Environment of the test run.
  * @param {string} [config.branch] - Branch of the test run.
  * @param {string} [config.commit] - Commit hash of the test run.
+ * @param {string} [config.startTime] - Start time (ISO string).
+ * @param {string} [config.endTime] - End time (ISO string).
  */
 async function publishTestReports(config) {
     console.log('Starting test results publishing...');
@@ -22,15 +22,15 @@ async function publishTestReports(config) {
     if (!config.serverApiUrl) {
         throw new Error('serverApiUrl is required in the configuration.');
     }
-
     if (!config.userId) {
         throw new Error('userId is required in the configuration.');
     }
-
-    if (!config.projectName) {
-        throw new Error('projectName is required in the configuration.');
+    if (!config.projectId) {
+        throw new Error('projectId (UUID) is required in the configuration.');
     }
-
+    if (!config.apiKey) {
+        throw new Error('apiKey is required in the configuration.');
+    }
     if (!config.reportsDir) {
         throw new Error('reportsDir is required in the configuration.');
     }
@@ -58,6 +58,7 @@ async function publishTestReports(config) {
         skipped: 0,
         duration: 0
     };
+    let suiteNames = [];
 
     for (const filePath of files) {
         const ext = path.extname(filePath).toLowerCase();
@@ -68,6 +69,11 @@ async function publishTestReports(config) {
             case '.xml':
                 console.log('Parsing JUnit XML file...');
                 result = await parseJUnit(filePath);
+                // Collect suite names from JUnit XML
+                if (result && result.testCases && result.testCases.length > 0) {
+                    const uniqueSuites = [...new Set(result.testCases.map(tc => tc.suite).filter(Boolean))];
+                    suiteNames = suiteNames.concat(uniqueSuites);
+                }
                 break;
             case '.html':
                 console.log('Parsing HTML file...');
@@ -98,29 +104,29 @@ async function publishTestReports(config) {
         allTestCases.push(...result.testCases);
     }
 
+    // Build payload for backend
+    const runName = suiteNames.length > 0 ? suiteNames.join(', ') : (config.name || 'Test Run');
     const payload = {
-        userId: config.userId,
-        projectName: config.projectName,
-        projectDescription: config.projectDescription || null,
-        name: config.name || 'Test Run',
-        environment: config.environment || null,
-        branch: config.branch || null,
-        commit: config.commit || null,
-        totalTests: summary.total,
-        passedTests: summary.passed,
-        failedTests: summary.failed,
-        skippedTests: summary.skipped,
-        totalDuration: summary.duration,
+        testRun: {
+            name: runName,
+            userId: config.userId,
+            projectId: config.projectId,
+            environment: config.environment || null,
+            branch: config.branch || null,
+            commit: config.commit || null,
+            startTime: config.startTime || new Date().toISOString(),
+            endTime: config.endTime || new Date().toISOString()
+        },
         testCases: allTestCases.map(testCase => ({
-            name: testCase.name,
+            title: testCase.title || '',
             status: testCase.status,
-            duration: testCase.duration,
-            errorMessage: testCase.errorMessage || testCase.error || null,
-            errorStack: testCase.errorStack || null,
-            file: testCase.file || null,
-            suite: testCase.suite || null
-        })),
-        status: summary.failed > 0 ? 'failed' : 'passed'
+            duration: Number.isInteger(testCase.duration) ? testCase.duration : Math.round(testCase.duration),
+            errorMessage: testCase.errorMessage ? String(testCase.errorMessage) : '',
+            errorStack: testCase.errorStack ? String(testCase.errorStack) : '',
+            file: testCase.file || '',
+            suite: testCase.suite || '',
+            // Add other optional fields as needed
+        }))
     };
 
     console.log('Sending test results to server...');
@@ -129,6 +135,7 @@ async function publishTestReports(config) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'x-api-key': config.apiKey
             },
             body: JSON.stringify(payload),
         });
@@ -145,6 +152,5 @@ async function publishTestReports(config) {
     }
 }
 
-module.exports = {
-    publishTestReports
-}; 
+module.exports = { publishTestReports };
+// ... existing code ...

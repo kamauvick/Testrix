@@ -31,7 +31,7 @@ async function parseJUnit(filePath) {
         if (suite.testcase) {
             suite.testcase.forEach(test => {
                 const testCase = {
-                    name: test.$.name,
+                    title: test.$.name,
                     status: 'passed',
                     duration: parseFloat(test.$.time || 0),
                     errorMessage: null,
@@ -84,13 +84,13 @@ async function parseHTML(filePath) {
     // Look for common test report patterns
     $('.test-case, .test, tr.test').each((_, element) => {
         const $el = $(element);
-        const name = $el.find('.name, .test-name').text().trim();
+        const title = $el.find('.name, .test-name').text().trim();
         const status = $el.find('.status, .result').text().trim().toLowerCase();
         const duration = parseFloat($el.find('.duration, .time').text().trim()) || 0;
         const error = $el.find('.error, .failure, .message').text().trim();
         
         const testCase = {
-            name,
+            title,
             status: status === 'pass' ? 'passed' : status === 'fail' ? 'failed' : 'skipped',
             duration,
             error: error || null
@@ -137,7 +137,7 @@ async function parseExcel(filePath) {
     
     const testCases = data.map(row => {
         const testCase = {
-            name: row['Test Name'] || row['Name'] || row['Test'],
+            title: row['Test Name'] || row['Name'] || row['Test'],
             status: (row['Status'] || row['Result'] || '').toLowerCase(),
             duration: parseFloat(row['Duration'] || row['Time'] || 0),
             error: row['Error'] || row['Message'] || null
@@ -169,8 +169,4 @@ async function parseExcel(filePath) {
     return { summary, testCases };
 }
 
-module.exports = {
-    parseJUnit,
-    parseHTML,
-    parseExcel
-}; 
+module.exports = { parseJUnit, parseHTML, parseExcel };
