@@ -1,10 +1,12 @@
 {
   "serverApiUrl": "http://localhost:4000/api/submit-test-reports",
   "userId": "YOUR_USER_ID",
+  "projectId": "YOUR_PROJECT_ID",
+  "apiKey": "YOUR_API_KEY",
   "projectName": "Your Project Name",
   "projectDescription": "Optional: A description for your project.",
   "reportsDir": "./test-reports",
-  "name": "Optional: Test Run Name",
+  "name": "Optional: Test Run Name (defaults to module name from test suite if omitted)",
   "environment": "Optional: Environment (e.g., development, staging, production)",
   "branch": "Optional: Git Branch Name",
   "commit": "Optional: Git Commit Hash"
