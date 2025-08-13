@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const { parseJUnit, parseHTML, parseExcel } = require('./parsers');
+const fetch = require('node-fetch');
 /**
  * Publishes test reports by sending them to a specified server API.
  * @param {object} config - The configuration object.

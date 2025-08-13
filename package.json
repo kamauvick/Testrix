@@ -1,6 +1,6 @@
 {
   "name": "testrix-cli",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "description": "CLI tool to parse and publish test reports from JUnit, HTML, and Excel formats.",
   "main": "src/publisher.js",
   "bin": {
