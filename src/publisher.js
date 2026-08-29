@@ -1,157 +1,170 @@
-const path = require('path');
-const fs = require('fs');
-const { parseJUnit, parseHTML, parseExcel } = require('./parsers');
-const fetch = require('node-fetch');
-/**
- * Publishes test reports by sending them to a specified server API.
- * @param {object} config - The configuration object.
- * @param {string} config.serverApiUrl - The URL of the server API endpoint to send test reports.
- * @param {string} config.userId - The user ID for the test run.
- * @param {string} config.projectId - The UUID of the project (REQUIRED by backend).
- * @param {string} config.apiKey - The API key for authentication (REQUIRED by backend).
- * @param {string} config.reportsDir - Directory containing test reports.
- * @param {string} [config.name] - Name of the test run.
- * @param {string} [config.environment] - Environment of the test run.
- * @param {string} [config.branch] - Branch of the test run.
- * @param {string} [config.commit] - Commit hash of the test run.
- * @param {string} [config.startTime] - Start time (ISO string).
- * @param {string} [config.endTime] - End time (ISO string).
- */
-async function publishTestReports(config) {
-    console.log('Starting test results publishing...');
+'use strict';
 
-    if (!config.serverApiUrl) {
-        throw new Error('serverApiUrl is required in the configuration.');
-    }
-    if (!config.userId) {
-        throw new Error('userId is required in the configuration.');
-    }
-    if (!config.projectId) {
-        throw new Error('projectId (UUID) is required in the configuration.');
-    }
-    if (!config.apiKey) {
-        throw new Error('apiKey is required in the configuration.');
-    }
-    if (!config.reportsDir) {
-        throw new Error('reportsDir is required in the configuration.');
-    }
+const fs = require('node:fs');
+const path = require('node:path');
 
-    console.log('Scanning reports directory:', config.reportsDir);
-    const reportsDir = path.resolve(config.reportsDir);
-    const files = fs.readdirSync(reportsDir)
-        .filter(file => {
-            const ext = path.extname(file).toLowerCase();
-            return ['.xml', '.html', '.xlsx', '.xls'].includes(ext);
-        })
-        .map(file => path.join(reportsDir, file));
+const log = require('./logger');
+const { parserForFile, parseJUnit, emptySummary } = require('./parsers');
 
-    if (files.length === 0) {
-        throw new Error(`No report files found in ${reportsDir}`);
-    }
+const REPORT_EXTENSIONS = new Set(['.xml', '.html', '.htm', '.xls', '.xlsx']);
 
-    console.log('Found report files:', files);
-
-    const allTestCases = [];
-    const summary = {
-        total: 0,
-        passed: 0,
-        failed: 0,
-        skipped: 0,
-        duration: 0
-    };
-    let suiteNames = [];
-
-    for (const filePath of files) {
-        const ext = path.extname(filePath).toLowerCase();
-        console.log('Processing file:', filePath);
-
-        let result;
-        switch (ext) {
-            case '.xml':
-                console.log('Parsing JUnit XML file...');
-                result = await parseJUnit(filePath);
-                // Collect suite names from JUnit XML
-                if (result && result.testCases && result.testCases.length > 0) {
-                    const uniqueSuites = [...new Set(result.testCases.map(tc => tc.suite).filter(Boolean))];
-                    suiteNames = suiteNames.concat(uniqueSuites);
-                }
-                break;
-            case '.html':
-                console.log('Parsing HTML file...');
-                result = await parseHTML(filePath);
-                break;
-            case '.xlsx':
-            case '.xls':
-                console.log('Parsing Excel file...');
-                result = await parseExcel(filePath);
-                break;
-            default:
-                console.warn(`Unsupported file type: ${ext}`);
-                continue;
-        }
-
-        console.log('File parsed successfully:', {
-            total: result.summary.total,
-            passed: result.summary.passed,
-            failed: result.summary.failed,
-            skipped: result.summary.skipped
-        });
-
-        summary.total += result.summary.total;
-        summary.passed += result.summary.passed;
-        summary.failed += result.summary.failed;
-        summary.skipped += result.summary.skipped;
-        summary.duration += result.summary.duration;
-        allTestCases.push(...result.testCases);
-    }
-
-    // Build payload for backend
-    const runName = suiteNames.length > 0 ? suiteNames.join(', ') : (config.name || 'Test Run');
-    const payload = {
-        testRun: {
-            name: runName,
-            userId: config.userId,
-            projectId: config.projectId,
-            environment: config.environment || null,
-            branch: config.branch || null,
-            commit: config.commit || null,
-            startTime: config.startTime || new Date().toISOString(),
-            endTime: config.endTime || new Date().toISOString()
-        },
-        testCases: allTestCases.map(testCase => ({
-            title: testCase.title || '',
-            status: testCase.status,
-            duration: Number.isInteger(testCase.duration) ? testCase.duration : Math.round(testCase.duration),
-            errorMessage: testCase.errorMessage ? String(testCase.errorMessage) : '',
-            errorStack: testCase.errorStack ? String(testCase.errorStack) : '',
-            file: testCase.file || '',
-            suite: testCase.suite || '',
-            // Add other optional fields as needed
-        }))
-    };
-
-    console.log('Sending test results to server...');
-    try {
-        const response = await fetch(config.serverApiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': config.apiKey
-            },
-            body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Server responded with an error: ${response.status} ${response.statusText} - ${errorText}`);
-        }
-
-        console.log('Test results published successfully to server!');
-    } catch (error) {
-        console.error('Failed to send test results to server:', error.message);
-        throw error; // Re-throw to be caught by main cli.js error handler
-    }
+/** List report files directly inside a directory (non-recursive). */
+function enumerateDirectory(directoryPath) {
+  return fs
+    .readdirSync(directoryPath)
+    .filter((name) => {
+      const ext = path.extname(name).toLowerCase();
+      if (REPORT_EXTENSIONS.has(ext)) return true;
+      return ext === '' && /junit/i.test(name); // e.g. vitest's `frontend-junit`
+    })
+    .map((name) => path.join(directoryPath, name));
 }
 
-module.exports = { publishTestReports };
-// ... existing code ...
+/** Expand an explicit list of file/dir paths into a flat list of files. */
+function collectExplicit(inputs) {
+  const files = [];
+  for (const input of inputs) {
+    const resolved = path.resolve(input);
+    if (!fs.existsSync(resolved)) {
+      log.warn(`Explicit report path does not exist, skipping: ${resolved}`);
+      continue;
+    }
+    const stat = fs.statSync(resolved);
+    if (stat.isDirectory()) files.push(...enumerateDirectory(resolved));
+    else if (stat.isFile()) files.push(resolved);
+  }
+  return files;
+}
+
+/**
+ * Resolve the set of report files to parse from `reportsDir` plus any explicit
+ * `reportFiles`.
+ * @param {import('./config').TestrixConfig} config
+ * @returns {string[]}
+ */
+function discoverReportFiles(config) {
+  const reportsDir = path.resolve(config.reportsDir);
+  const files = new Set(enumerateDirectory(reportsDir));
+  if (Array.isArray(config.reportFiles) && config.reportFiles.length > 0) {
+    log.debug('Including explicit report files:', config.reportFiles.join(', '));
+    for (const file of collectExplicit(config.reportFiles)) files.add(file);
+  }
+  if (files.size === 0) {
+    throw new Error(`No report files (.xml, .html, .xls/.xlsx or *junit*) found in ${reportsDir}`);
+  }
+  return [...files];
+}
+
+/**
+ * Parse every report file and merge the results.
+ * @param {string[]} files
+ * @returns {Promise<{ summary: object, testCases: object[], suites: string[] }>}
+ */
+async function parseReports(files) {
+  const summary = emptySummary();
+  const testCases = [];
+  const suites = new Set();
+
+  for (const file of files) {
+    const parser = parserForFile(file);
+    if (!parser) {
+      log.warn(`Unsupported report type, skipping: ${file}`);
+      continue;
+    }
+    log.info(`Parsing ${path.basename(file)}`);
+    let result;
+    try {
+      result = await parser(file);
+    } catch (err) {
+      if (parser === parseJUnit && path.extname(file) === '') {
+        log.warn(
+          `Could not parse extensionless file as JUnit XML, skipping: ${file} (${err.message})`,
+        );
+        continue;
+      }
+      throw new Error(`Failed to parse ${file}: ${err.message}`);
+    }
+
+    for (const key of ['total', 'passed', 'failed', 'skipped', 'duration']) {
+      summary[key] += result.summary[key];
+    }
+    testCases.push(...result.testCases);
+    for (const tc of result.testCases) if (tc.suite) suites.add(tc.suite);
+  }
+
+  return { summary, testCases, suites: [...suites] };
+}
+
+/** Build the request body the dashboard API expects. */
+function buildPayload(config, { testCases, suites }) {
+  const now = new Date().toISOString();
+  const payload = {
+    testRun: {
+      name: suites.length > 0 ? suites.join(', ') : config.name || 'Test Run',
+      userId: config.userId,
+      projectId: config.projectId,
+      environment: config.environment || null,
+      branch: config.branch || null,
+      commit: config.commit || null,
+      startTime: config.startTime || now,
+      endTime: config.endTime || now,
+    },
+    testCases: testCases.map((tc) => ({
+      title: tc.title || '',
+      status: tc.status,
+      duration: Math.round(Number(tc.duration) || 0),
+      errorMessage: tc.errorMessage ? String(tc.errorMessage) : '',
+      errorStack: tc.errorStack ? String(tc.errorStack) : '',
+      file: tc.file || '',
+      suite: tc.suite || '',
+    })),
+  };
+  if (config.includeSuitesInPayload && suites.length > 0) {
+    payload.testRun.suites = suites;
+  }
+  return payload;
+}
+
+/** POST the payload to the dashboard API. Throws on a non-2xx response. */
+async function submit(config, payload) {
+  log.info(`Publishing ${payload.testCases.length} test case(s) to ${config.serverApiUrl}`);
+  const response = await fetch(config.serverApiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': config.apiKey },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(
+      `Server responded ${response.status} ${response.statusText}${body ? ` - ${body}` : ''}`,
+    );
+  }
+}
+
+/**
+ * Discover, parse and publish test reports described by `config`.
+ * @param {import('./config').TestrixConfig} config
+ * @returns {Promise<{ summary: object, published: number }>}
+ */
+async function publishTestReports(config) {
+  const files = discoverReportFiles(config);
+  log.info(`Found ${files.length} report file(s)`);
+
+  const { summary, testCases, suites } = await parseReports(files);
+  log.info(
+    `Parsed ${summary.total} test(s): ${summary.passed} passed, ${summary.failed} failed, ${summary.skipped} skipped`,
+  );
+
+  const payload = buildPayload(config, { testCases, suites });
+  await submit(config, payload);
+  log.info('Test results published successfully.');
+
+  return { summary, published: payload.testCases.length };
+}
+
+module.exports = {
+  publishTestReports,
+  discoverReportFiles,
+  parseReports,
+  buildPayload,
+};

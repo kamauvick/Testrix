@@ -28,11 +28,16 @@ npm install -g testrix-cli
 
     ```json
     {
-      "serverApiUrl": "http://localhost:4000/api/test-reports",
+      "serverApiUrl": "Optional: Override default prod URL or set TESTRIX_SERVER_API_URL",
       "userId": "YOUR_USER_ID",
-      "projectName": "Your Project Name",
+      "projectId": "YOUR_PROJECT_ID",
+      "apiKey": "YOUR_API_KEY",
       "projectDescription": "Optional: A description for your project.",
       "reportsDir": "./test-reports",
+      "reportFiles": [
+        "./frontend-junit"
+      ],
+      "includeSuitesInPayload": true,
       "name": "Optional: Test Run Name",
       "environment": "Optional: Environment (e.g., development, staging, production)",
       "branch": "Optional: Git Branch Name",
@@ -40,10 +45,13 @@ npm install -g testrix-cli
     }
     ```
 
-    *   `serverApiUrl`: The URL of your server's API endpoint where test reports will be sent as a JSON payload (e.g., `http://your-server.com/api/test-reports`).
-    *   `userId`: A unique identifier for the user initiating the test run. This will be sent to your server.
-    *   `projectName`: The name of the project associated with the test run.
-    *   `reportsDir`: The local directory where your test report files are located. This should be an absolute path or a path relative to where you execute the `testrix` command. Ensure the CLI has read access to this directory.
+    *   `serverApiUrl`: The URL of your server's API endpoint. Defaults to prod `https://testing-dashboard-api.myworkpay.com/api/submit-test-reports` if omitted; can be overridden by `TESTRIX_SERVER_API_URL` env or config.
+    *   `userId`: A unique identifier for the user initiating the test run.
+    *   `projectId` and `apiKey`: Required by the backend for authentication/authorization.
+    *   `reportsDir`: Directory scanned for `.xml`, `.html`, `.xls/.xlsx`.
+    *   `reportFiles` (optional): Explicit files or directories to include in addition to `reportsDir`. Supports extensionless JUnit files (e.g., `./frontend-junit` from vitest).
+    *   `includeSuitesInPayload` (optional): If true, `testRun.suites` will include unique suite names extracted from JUnit files.
+    *   `projectDescription`: Optional metadata. Project name can be inferred server-side from `projectId`.
 
 2.  **Run Testrix CLI**: Execute the `testrix` command, optionally providing the path to your config file.
 
@@ -58,15 +66,64 @@ npm install -g testrix-cli
 ## Project Structure
 
 ```
-.github/
-cli.js
-package.json
-package-lock.json
-README.md
+cli.js                  # executable entry point (arg parsing, exit codes)
 src/
+  ├── index.js           # public programmatic API
+  ├── config.js          # load + validate config (file, env, defaults)
+  ├── logger.js          # leveled logger (TESTRIX_LOG_LEVEL)
+  ├── publisher.js       # discover → parse → build payload → submit
   ├── config.json.template
-  ├── parsers.js
-  └── publisher.js
+  └── parsers/
+      ├── index.js       # parserForFile() dispatch
+      ├── junit.js       # JUnit XML (Vitest, Pest/PHPUnit, nested suites)
+      ├── html.js        # HTML reporter output
+      ├── excel.js       # .xls / .xlsx
+      └── shared.js      # summary + status helpers
+test/                   # node:test unit tests + fixtures
 ```
 
-**Note**: Testrix CLI no longer manages a local SQLite database directly. It sends data to your configured server API, which is responsible for database storage.
+**Requires Node.js >= 18.17** (uses the built-in `fetch` and test runner).
+
+**Note**: Testrix CLI does not manage a local database. It sends data to your configured server API, which is responsible for storage.
+
+### Programmatic use
+
+```js
+const { loadConfig, publishTestReports } = require('testrix-cli');
+
+const config = loadConfig('./config.json');
+const { summary, published } = await publishTestReports(config);
+```
+
+### Environment variables
+
+| Variable | Purpose |
+| --- | --- |
+| `TESTRIX_SERVER_API_URL` | Override `serverApiUrl` |
+| `TESTRIX_PROJECT_ID` | Provide `projectId` |
+| `TESTRIX_API_KEY` | Provide `apiKey` |
+| `TESTRIX_LOG_LEVEL` | `silent` \| `error` \| `warn` \| `info` (default) \| `debug` |
+
+### Development
+
+```bash
+npm install
+npm test      # node --test
+npm run lint  # eslint
+```
+
+---
+
+## Vitest/Pest JUnit and explicit report files
+
+- If you generate a vitest or Pest (PHPUnit) JUnit file without an extension (e.g., `frontend-junit` or `pest-junit` at the repo root), add it via `reportFiles`:
+
+```json
+{
+  "reportsDir": "./test-reports",
+  "reportFiles": ["./frontend-junit"]
+}
+```
+
+- The CLI will also attempt to parse extensionless files as JUnit XML automatically when discovered in specified directories.
+- The JUnit parser supports nested `<testsuite>` structures and PHPUnit/Pest variations for failures and errors.

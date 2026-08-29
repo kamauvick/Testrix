@@ -1,36 +1,43 @@
 {
   "name": "testrix-cli",
-  "version": "1.1.0",
-  "description": "CLI tool to parse and publish test reports from JUnit, HTML, and Excel formats.",
-  "main": "src/publisher.js",
+  "version": "1.2.0",
+  "description": "Parse JUnit, HTML and Excel test reports and publish them to a Testrix dashboard API.",
+  "main": "src/index.js",
   "bin": {
     "testrix": "./cli.js"
   },
   "scripts": {
-    "start": "node cli.js"
+    "start": "node cli.js",
+    "test": "node --test",
+    "lint": "eslint .",
+    "format": "prettier --write ."
   },
   "keywords": [
     "cli",
     "test",
     "report",
     "junit",
+    "vitest",
+    "pest",
     "automation",
     "ci"
   ],
-  "author": "Your Name",
+  "author": "MyWorkPay QA",
   "license": "MIT",
+  "type": "commonjs",
   "dependencies": {
     "cheerio": "^1.1.0",
-    "fs": "^0.0.1-security",
-    "path": "^0.12.7",
-    "node-fetch": "^2.6.1",
     "xlsx": "^0.18.5",
-    "xml2js": "^0.4.23"
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "eslint": "^9.13.0",
+    "prettier": "^3.3.3"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=18.17.0"
   },
-  
   "files": [
     "cli.js",
     "src/"

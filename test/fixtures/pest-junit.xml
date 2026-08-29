@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="Unit" tests="2" failures="1" errors="0" time="0.08">
+    <testsuite name="Tests\Unit\ExampleTest" tests="2" failures="1" errors="0" time="0.08">
+      <testcase name="it works" class="Tests\Unit\ExampleTest" file="tests/Unit/ExampleTest.php" time="0.05"/>
+      <testcase name="it fails" class="Tests\Unit\ExampleTest" file="tests/Unit/ExampleTest.php" time="0.03">
+        <failure type="PHPUnit\Framework\ExpectationFailedException">Failed asserting that false is true.</failure>
+      </testcase>
+    </testsuite>
+  </testsuite>
+</testsuites>

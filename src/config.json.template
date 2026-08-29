@@ -1,11 +1,14 @@
 {
-  "serverApiUrl": "http://localhost:4000/api/submit-test-reports",
+  "serverApiUrl": "Optional: Override default prod URL or set TESTRIX_SERVER_API_URL env",
   "userId": "YOUR_USER_ID",
   "projectId": "YOUR_PROJECT_ID",
   "apiKey": "YOUR_API_KEY",
-  "projectName": "Your Project Name",
   "projectDescription": "Optional: A description for your project.",
   "reportsDir": "./test-reports",
+  "reportFiles": [
+    "Optional: Additional report files or directories (e.g., ./frontend-junit, ./more-reports, /abs/path/report.xml)"
+  ],
+  "includeSuitesInPayload": false,
   "name": "Optional: Test Run Name (defaults to module name from test suite if omitted)",
   "environment": "Optional: Environment (e.g., development, staging, production)",
   "branch": "Optional: Git Branch Name",
