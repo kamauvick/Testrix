@@ -10,12 +10,36 @@ const {
   streamPlaywrightJson,
   NotPlaywrightJsonError,
 } = require('./playwright-json');
+const { parseTestNG, streamTestNG } = require('./testng');
+const { parseNUnit, streamNUnit } = require('./nunit');
+const { parseMochawesome, streamMochawesome, NotMochawesomeJsonError } = require('./mochawesome');
+const { parseCtrf, streamCtrf, NotCtrfJsonError } = require('./ctrf');
+const { parseK6, streamK6, NotK6JsonError } = require('./k6');
+const { parseTap, streamTap } = require('./tap');
+const { parseJMeter, streamJMeter } = require('./jmeter');
+const { sniffXmlFormat, sniffJsonFormat } = require('./sniff');
 const { emptySummary, normaliseStatus, countStatus, stripAnsi, SUMMARY_KEYS } = require('./shared');
 
+const XML_PARSERS = { junit: parseJUnit, testng: parseTestNG, nunit: parseNUnit };
+const XML_STREAMERS = { junit: streamJUnit, testng: streamTestNG, nunit: streamNUnit };
+const JSON_PARSERS = {
+  playwright: parsePlaywrightJson,
+  k6: parseK6,
+  ctrf: parseCtrf,
+  mochawesome: parseMochawesome,
+};
+const JSON_STREAMERS = {
+  playwright: streamPlaywrightJson,
+  k6: streamK6,
+  ctrf: streamCtrf,
+  mochawesome: streamMochawesome,
+};
+
 /**
- * Return the buffered parser for a file, by extension. Extensionless files are
- * assumed to be JUnit XML (Vitest / Pest often emit these); `.json` is a
- * Playwright JSON report. Returns `null` for unsupported types.
+ * Return the buffered parser for a file. `.xml` / extensionless is sniffed
+ * between JUnit / TestNG / NUnit3 by root element; `.json` between Playwright /
+ * k6 / CTRF / Mochawesome by top-level keys. Dedicated extensions (`.jtl`,
+ * `.tap`, `.html`, `.xls(x)`) map directly. `null` for unsupported types.
  * @param {string} filePath
  * @returns {((filePath: string) => Promise<object>) | null}
  */
@@ -23,9 +47,13 @@ function parserForFile(filePath) {
   switch (path.extname(filePath).toLowerCase()) {
     case '.xml':
     case '':
-      return parseJUnit;
+      return XML_PARSERS[sniffXmlFormat(filePath)];
     case '.json':
-      return parsePlaywrightJson;
+      return JSON_PARSERS[sniffJsonFormat(filePath)];
+    case '.jtl':
+      return parseJMeter;
+    case '.tap':
+      return parseTap;
     case '.html':
     case '.htm':
       return parseHtml;
@@ -48,17 +76,23 @@ function bufferedToStream(parseFn) {
 }
 
 /**
- * Return a `(filePath, acc) => AsyncGenerator<record>` for a file. JUnit is
- * parsed with a true streaming reader (constant memory); other formats are
- * adapted from their buffered parsers. `null` for unsupported types.
+ * Return a `(filePath, acc) => AsyncGenerator<record>` for a file - the
+ * streaming counterpart of {@link parserForFile}. JUnit, TestNG, NUnit,
+ * Playwright JSON, k6, CTRF, Mochawesome, TAP and JMeter all stream natively;
+ * HTML/Excel are adapted from their buffered parsers. `null` for unsupported
+ * types.
  */
 function streamParserForFile(filePath) {
   switch (path.extname(filePath).toLowerCase()) {
     case '.xml':
     case '':
-      return streamJUnit;
+      return XML_STREAMERS[sniffXmlFormat(filePath)];
     case '.json':
-      return streamPlaywrightJson;
+      return JSON_STREAMERS[sniffJsonFormat(filePath)];
+    case '.jtl':
+      return streamJMeter;
+    case '.tap':
+      return streamTap;
     case '.html':
     case '.htm':
       return bufferedToStream(parseHtml);
@@ -78,6 +112,23 @@ module.exports = {
   parsePlaywrightJson,
   streamPlaywrightJson,
   NotPlaywrightJsonError,
+  parseTestNG,
+  streamTestNG,
+  parseNUnit,
+  streamNUnit,
+  parseMochawesome,
+  streamMochawesome,
+  NotMochawesomeJsonError,
+  parseCtrf,
+  streamCtrf,
+  NotCtrfJsonError,
+  parseK6,
+  streamK6,
+  NotK6JsonError,
+  parseTap,
+  streamTap,
+  parseJMeter,
+  streamJMeter,
   parserForFile,
   streamParserForFile,
   emptySummary,

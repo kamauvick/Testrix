@@ -1,0 +1,46 @@
+{
+  "results": {
+    "tool": { "name": "jest" },
+    "summary": {
+      "tests": 3,
+      "passed": 1,
+      "failed": 1,
+      "pending": 0,
+      "skipped": 1,
+      "other": 0,
+      "start": 1798000000000,
+      "stop": 1798000005000
+    },
+    "tests": [
+      {
+        "name": "adds numbers",
+        "status": "passed",
+        "duration": 12,
+        "suite": "math",
+        "filePath": "src/math.test.ts",
+        "line": 5
+      },
+      {
+        "name": "subtracts numbers",
+        "status": "failed",
+        "duration": 8,
+        "suite": "math",
+        "filePath": "src/math.test.ts",
+        "line": 12,
+        "message": "expected 1 to be 2",
+        "trace": "AssertionError: expected 1 to be 2\n    at src/math.test.ts:14:10",
+        "retries": 1,
+        "flaky": true
+      },
+      {
+        "name": "divides numbers",
+        "status": "skipped",
+        "duration": 0,
+        "suite": "math",
+        "filePath": "src/math.test.ts",
+        "line": 20
+      }
+    ],
+    "environment": { "appName": "example" }
+  }
+}

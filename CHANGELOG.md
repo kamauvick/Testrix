@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Seven new report formats**, with content-based dispatch so `.xml`/`.json`
+  work whichever tool produced them:
+  - **TestNG** (`testng-results.xml` - Selenium-via-TestNG, WebdriverIO)
+  - **NUnit3** XML (.NET / Selenium-with-NUnit)
+  - **Mochawesome** JSON (Cypress's default reporter, or plain Mocha)
+  - **CTRF** JSON (the emerging cross-runner format - Jest, Playwright, k6, ...)
+  - **TAP** (`node --test`, `tap`, `pytest-tap`), streamed line-by-line
+  - **k6** summary export - `checks` and metric `thresholds` become pass/fail
+    cases, with the underlying values attached as `metrics`
+  - **JMeter** `.jtl`, both CSV and XML, streamed and aggregated by sampler
+    label (memory tracks unique labels, not sample count - these files are
+    routinely gigabytes)
+  - `.xml` is sniffed between JUnit/TestNG/NUnit3 by root element; `.json`
+    between Playwright/k6/CTRF/Mochawesome by top-level keys; `.jtl` and `.tap`
+    are dedicated extensions.
+  - Test-case records gained an optional `metrics: {name, value, unit}[]` for
+    load-tool data (not yet forwarded by `buildPayload` - no API column for it
+    yet).
+
 - **Playwright support.** Native parser for the `json` reporter and hardened
   handling of the `junit` reporter: projects/browsers (`hostname`), retries,
   flaky tests (`<flakyFailure>`), `[[ATTACHMENT|…]]` screenshot/video/trace

@@ -41,12 +41,21 @@ test('parseJUnit flattens nested Pest/PHPUnit suites into a suite path', async (
 });
 
 test('parserForFile maps extensions (and extensionless files to JUnit)', () => {
-  assert.equal(parserForFile('report.xml'), parseJUnit);
-  assert.equal(parserForFile('frontend-junit'), parseJUnit);
-  assert.equal(parserForFile('report.json'), parsePlaywrightJson);
+  // .xml / .json are content-sniffed, so these need to be real files.
+  assert.equal(parserForFile(fixture('vitest-junit.xml')), parseJUnit);
+  assert.equal(parserForFile(fixture('frontend-junit')), parseJUnit); // extensionless, e.g. vitest
+  assert.equal(parserForFile(fixture('playwright-json.json')), parsePlaywrightJson);
   assert.equal(parserForFile('report.html').name, 'parseHtml');
   assert.equal(parserForFile('report.xlsx').name, 'parseExcel');
   assert.equal(parserForFile('notes.txt'), null);
+});
+
+test('parserForFile sniffs extensionless files and dedicated extensions', () => {
+  const { parseTestNG, parseNUnit, parseTap, parseJMeter } = require('../src/parsers');
+  assert.equal(parserForFile(fixture('testng-results.xml')), parseTestNG);
+  assert.equal(parserForFile(fixture('nunit3-results.xml')), parseNUnit);
+  assert.equal(parserForFile('anything.tap'), parseTap);
+  assert.equal(parserForFile('anything.jtl'), parseJMeter);
 });
 
 test('stripAnsi removes colour codes; normaliseStatus maps Playwright vocab', () => {

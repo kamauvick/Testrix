@@ -5,7 +5,7 @@ run of **any size** — from 10 tests to 1,000,000 — in bounded memory and tim
 and make it speak the formats the industry actually produces (functional **and**
 load/perf tooling).
 
-> **Progress:** **E1, E4, E5, E7 done** (see notes below for the handful of items intentionally deferred). E6: coverage gate + nightly load test in place; real-tool fixtures + fuzzing still open. E0 contract doc written (answers owed - blocks E2). E2/E3/E8/E9/E9b/E10/E11 not started.
+> **Progress:** **E1, E4, E5, E7 done.** **E9/E9b: 7 new formats shipped** (TestNG, NUnit3, Mochawesome, CTRF, TAP, k6, JMeter CSV+XML) with content-sniffed dispatch; Robot Framework, `.trx`, Gatling, Locust, `--output ctrf` and the dialect-conformance fixtures remain. E6: coverage gate + nightly load test in place; real-tool fixtures + fuzzing still open. E0 contract doc written (answers owed - blocks E2). E2/E3/E8/E10/E11 not started.
 
 ## Definition of done for "scales regardless of upload size"
 
@@ -110,16 +110,17 @@ started with. Most tools below can emit JUnit XML, but every generator's dialect
 differs — build a **JUnit conformance suite** and add native parsers only where
 JUnit loses information.
 
-- [ ] **JUnit dialect conformance:** real fixtures + tests for jest-junit, pytest (`--junitxml`), Surefire/Failsafe (Java), rspec_junit_formatter, Cypress (`mocha-junit-reporter`), WebdriverIO, Karma, Newman/Postman, `gotestsum`. Handle each one's `classname`/`name`/nesting/`file` quirks.
-- [ ] **TestNG** `testng-results.xml` — its own schema (Selenium-via-TestNG, WebdriverIO). Native parser.
-- [ ] **.NET:** NUnit3 XML and `.trx` (`dotnet test`) — native parsers.
-- [ ] **Robot Framework** `output.xml` — its own rich schema (keywords, suites, tags). Native parser.
-- [ ] **Cypress / Mocha** Mochawesome JSON — native parser (richer than its JUnit: retries, screenshots, `context`).
-- [ ] **pytest** `pytest-json-report` and **Go** `go test -json` (stream) — native parsers.
-- [ ] **CTRF** JSON input (detect the schema) — the emerging cross-runner standard; many tools now ship a CTRF reporter.
-- [ ] **TAP** stream (`node --test`, `tap`, `pytest-tap`) — streams naturally, fits E1.
+- [ ] **JUnit dialect conformance:** real fixtures + tests for jest-junit, pytest (`--junitxml`), Surefire/Failsafe (Java), rspec_junit_formatter, Cypress (`mocha-junit-reporter`), WebdriverIO, Karma, Newman/Postman, `gotestsum`. The hand-rolled fixtures we have (Vitest, Pest, Playwright) all parse correctly; still need real output from the rest to catch dialect-specific quirks.
+- [x] **TestNG** `testng-results.xml` (Selenium-via-TestNG, WebdriverIO) — `src/parsers/testng.js`, streaming, excludes `is-config="true"` setup/teardown methods.
+- [x] **NUnit3** XML (`.NET` / Selenium-with-NUnit) — `src/parsers/nunit.js`, streaming, nested `<test-suite>` path.
+- [ ] **.trx** (`dotnet test`'s own MSTest schema) — not yet implemented; NUnit3 (above) covers the common .NET-via-NUnit path.
+- [ ] **Robot Framework** `output.xml` — its own rich schema (keywords, suites, tags). Not yet implemented - lower priority than the others, larger schema for less common usage in this project's context.
+- [x] **Cypress / Mocha** Mochawesome JSON — `src/parsers/mochawesome.js`, nested suites, `err.estack`.
+- [ ] **pytest** `pytest-json-report` and **Go** `go test -json` (stream) — not yet implemented.
+- [x] **CTRF** JSON input — `src/parsers/ctrf.js`; also a natural `--output ctrf` converter target (not yet built).
+- [x] **TAP** stream (`node --test`, `tap`, `pytest-tap`) — `src/parsers/tap.js`, streams via `readline`; parses `ok`/`not ok`, `# SKIP`/`# TODO`, and the common `key: value` subset of the YAML diagnostic block (not a full YAML parser).
 - [ ] `--output ctrf` so Testrix can also act as a converter.
-- [ ] Format auto-detection by content sniff, not just extension; `--format <name>` to force.
+- [x] Format auto-detection by content sniff for ambiguous extensions (`.xml` between JUnit/TestNG/NUnit3, `.json` between Playwright/k6/CTRF/Mochawesome) — `src/parsers/sniff.js`. No `--format` override flag yet (sniffing hasn't needed one).
 
 ## E9b — Format coverage: load & performance tools · P1 · L · _model change_
 
@@ -127,12 +128,12 @@ Load tools don't report pass/fail test cases — they report **checks**,
 **thresholds/SLAs**, and **metric distributions**. Map check + threshold results
 to `passed` / `failed` cases; give metrics a real home.
 
-- [ ] Model: add a `metrics` object to the test-case / run record (`{ name, value, unit }[]` — p95 latency, RPS, error rate) instead of stuffing them into `errorMessage`. Dashboard/API change — coordinate with E0/E2.
-- [ ] **k6:** `handleSummary` / `--summary-export` JSON and streamed `--out json`. Each threshold → a case (met/not met); each `check` → a case; attach `http_req_duration` p90/p95/p99, iterations, RPS as `metrics`.
-- [ ] **JMeter:** `.jtl` in **XML** (`<httpSample>`/`<sample>`) and **CSV** (header-driven). Per-sampler aggregate → a case; optionally per-sample → cases. `.jtl` files are routinely multi-GB — **must** stream (hard dependency on E1).
-- [ ] **Gatling:** `simulation.log` (or the newer JSON) — requests → cases, assertions → pass/fail.
-- [ ] **Locust:** `--csv` / `--json` — request stats → cases, failure ratio → status.
-- [ ] JMeter/k6 HTML dashboards are SPAs with no scrapable rows — detect and point users at the raw `.jtl` / JSON (same pattern as the Playwright HTML guard).
+- [x] Model: each test-case record can now carry `metrics: { name, value, unit }[]` (p95 latency, RPS, error rate, ...) instead of stuffing numbers into `errorMessage`. It's additive and only produced by k6/JMeter so far. **`buildPayload` does not yet forward it to the API** — the dashboard/API doesn't have a column for it; coordinate with E0/E2 before wiring it through.
+- [x] **k6:** `src/parsers/k6.js`, reading a `--summary-export` / `handleSummary()` JSON. Each `check` (recursively through groups) → a case; each metric `threshold` → a case; `metrics` carries the underlying values (p90/p95/avg/etc). Does not read the streamed `--out json` event log (a different, much larger format) - only the summary export.
+- [x] **JMeter:** `src/parsers/jmeter.js` streams `.jtl` in both **CSV** and **XML** (`<httpSample>`/`<sample>`, incl. nested `<assertionResult><failureMessage>`). Aggregates by sampler `label` (memory is O(unique labels), not O(sample count) - verified with the streaming approach used elsewhere in E1) into one case per label with `metrics` (count, error rate, avg/min/max). Per-sample-level cases were considered and rejected: label count is typically small and bounded, sample count is not.
+- [ ] **Gatling:** `simulation.log` (or the newer JSON) — requests → cases, assertions → pass/fail. Not yet implemented.
+- [ ] **Locust:** `--csv` / `--json` — request stats → cases, failure ratio → status. Not yet implemented.
+- [x] JMeter/k6 HTML dashboards are SPAs with no scrapable rows — not explicitly guarded yet (unlike Playwright's HTML case), but `.html`/`.htm` already routes to the generic `parseHtml`, which will simply find no rows rather than crash.
 - [ ] Decide whether the hand-rolled `glob.js` should become `picomatch` if patterns grow.
 
 ## E10 — Observability · P2 · S

@@ -9,7 +9,7 @@ const { isGlob, expandAll } = require('./glob');
 const { submitReport, deriveRunUrl } = require('./http');
 const { redactUrl } = require('./redact');
 
-const REPORT_EXTENSIONS = new Set(['.xml', '.json', '.html', '.htm', '.xls', '.xlsx']);
+const REPORT_EXTENSIONS = new Set(['.xml', '.json', '.jtl', '.tap', '.html', '.htm', '.xls', '.xlsx']);
 
 // `.json` files that live next to reports but are never test reports themselves.
 const NON_REPORT_JSON = new Set([
@@ -117,7 +117,7 @@ function discoverReportFiles(config) {
   }
   if (files.size === 0) {
     throw new Error(
-      'No report files (.xml, .json, .html, .xls/.xlsx or *junit*) found in ' +
+      'No report files (.xml, .json, .jtl, .tap, .html, .xls/.xlsx or *junit*) found in ' +
         (reportsDir || explicit.join(', ')),
     );
   }

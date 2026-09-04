@@ -1,0 +1,50 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 2,
+    "passes": 1,
+    "pending": 0,
+    "failures": 1,
+    "start": "2026-09-04T10:00:00.000Z",
+    "end": "2026-09-04T10:00:01.500Z"
+  },
+  "results": [
+    {
+      "uuid": "abc-123",
+      "title": "",
+      "fullFile": "cypress/e2e/login.cy.js",
+      "file": "cypress/e2e/login.cy.js",
+      "suites": [
+        {
+          "title": "Login",
+          "tests": [
+            {
+              "title": "logs in",
+              "fullTitle": "Login logs in",
+              "duration": 900,
+              "state": "passed",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "err": {}
+            },
+            {
+              "title": "shows error on bad password",
+              "fullTitle": "Login shows error on bad password",
+              "duration": 600,
+              "state": "failed",
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "err": {
+                "message": "expected 'hidden' to equal 'visible'",
+                "estack": "AssertionError: expected 'hidden' to equal 'visible'\n    at Context.<anonymous> (login.cy.js:12:20)"
+              }
+            }
+          ],
+          "suites": []
+        }
+      ]
+    }
+  ]
+}

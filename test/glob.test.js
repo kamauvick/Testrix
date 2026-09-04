@@ -23,10 +23,11 @@ test('expand returns a literal path untouched (no filesystem check)', () => {
 });
 
 test('expand resolves *, **, and {a,b}', () => {
-  assert.deepEqual(base(expand('*.json', fixturesDir)), [
-    'playwright-json-globalerror.json',
-    'playwright-json.json',
-  ]);
+  const jsonNames = base(expand('*.json', fixturesDir));
+  assert.ok(jsonNames.includes('playwright-json.json'));
+  assert.ok(jsonNames.includes('playwright-json-globalerror.json'));
+  assert.ok(jsonNames.includes('ctrf-report.json')); // the glob isn't format-specific
+
   assert.deepEqual(base(expand('**/playwright-junit*.xml', path.dirname(fixturesDir))), [
     'playwright-junit-globalerror.xml',
     'playwright-junit.xml',

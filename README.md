@@ -1,12 +1,13 @@
 # Testrix CLI
 
-**Testrix CLI** is a command-line tool designed to parse test reports (JUnit XML, Playwright JSON, HTML, Excel) and publish the results to a specified server API. This allows for centralized tracking, analytics, and dashboards for your CI/CD pipelines and local environments.
+**Testrix CLI** is a command-line tool designed to parse test reports from the tools you actually use - JUnit XML, Playwright, TestNG, NUnit3, Cypress/Mochawesome, CTRF, TAP, k6, JMeter, HTML, Excel - and publish the results to a specified server API. This allows for centralized tracking, analytics, and dashboards for your CI/CD pipelines and local environments.
 
 ---
 
 ## 📦 Features
 
-- ✅ Parses `JUnit` / `.xml`, Playwright `.json`, `.html`, and `.xls/.xlsx` test reports
+- ✅ **Functional test frameworks:** JUnit XML (Vitest, Pest/PHPUnit, Surefire, ...), Playwright (`junit` + `json`), TestNG, NUnit3, Cypress/Mocha (Mochawesome), CTRF, TAP (`node --test`, `tap`), plus `.html` and `.xls/.xlsx`. `.xml`/`.json` are content-sniffed, so it doesn't matter which tool produced them.
+- 📈 **Load/perf tools:** k6 (checks + threshold SLAs) and JMeter `.jtl` (CSV or XML, streamed and aggregated by sampler label even at multi-GB size).
 - 🎭 First-class [Playwright](#playwright) support: projects (browsers), retries, flaky tests, attachments, and crash detection
 - 📁 Extracts test case results including status, duration, and error details
 - 📊 Aggregates summary statistics (total, passed, failed, skipped, flaky)
