@@ -4,7 +4,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const log = require('./logger');
-const { streamParserForFile, streamJUnit, countStatus, emptySummary } = require('./parsers');
+const {
+  streamParserForFile,
+  streamJUnit,
+  streamTestNG,
+  streamNUnit,
+  countStatus,
+  emptySummary,
+} = require('./parsers');
 const { isGlob, expandAll } = require('./glob');
 const { submitReport, deriveRunUrl } = require('./http');
 const { redactUrl } = require('./redact');
@@ -134,10 +141,15 @@ function discoverReportFiles(config) {
   return [...files];
 }
 
+// Extensionless files are sniffed as one of these three XML dialects (see
+// sniffXmlFormat); a parse failure on any of them is "wrong format", not a
+// reason to abort the whole run - not just the JUnit fallback case.
+const EXTENSIONLESS_XML_STREAMERS = new Set([streamJUnit, streamTestNG, streamNUnit]);
+
 /** Is this a "valid file, wrong format" error we can skip past rather than abort on? */
 function isSkippable(streamer, file, err) {
   if (err.skippable) return true; // e.g. a .json that isn't a Playwright report
-  return streamer === streamJUnit && path.extname(file) === ''; // non-JUnit extensionless file
+  return EXTENSIONLESS_XML_STREAMERS.has(streamer) && path.extname(file) === '';
 }
 
 /**
@@ -162,7 +174,17 @@ async function parseReports(files, { maxCases = 0 } = {}) {
       truncated = true;
       break;
     }
-    const streamer = streamParserForFile(file);
+    // streamParserForFile() does its own file I/O for .xml/.json (content
+    // sniffing), so it can fail the same way an actual parse can (file
+    // removed after discovery, a permission error, ...) - treat that as a
+    // per-file skip too, not an abort of the whole run.
+    let streamer;
+    try {
+      streamer = streamParserForFile(file);
+    } catch (err) {
+      log.warn(`Skipping ${path.basename(file)}: could not inspect file (${err.message})`);
+      continue;
+    }
     if (!streamer) {
       if (path.extname(file).toLowerCase() === '.zip') {
         log.warn(
@@ -262,7 +284,7 @@ function buildPayload(config, { testCases, suites, startTime, endTime }) {
         file: tc.file || '',
         suite: multiProject && tc.project ? `[${tc.project}] ${suite}`.trim() : suite,
       };
-      if (tc.line) out.line = tc.line;
+      if (Number.isFinite(tc.line)) out.line = tc.line; // preserves a legitimate line 0
       if (tc.retries) out.retryCount = tc.retries;
       const art = pickArtifacts(tc.attachments);
       if (art.screenshot) out.screenshot = art.screenshot;
@@ -346,4 +368,5 @@ module.exports = {
   discoverReportFiles,
   parseReports,
   buildPayload,
+  REPORT_EXTENSIONS,
 };

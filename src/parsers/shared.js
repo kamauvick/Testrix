@@ -73,8 +73,44 @@ function countStatus(summary, status) {
   else if (status === 'flaky') summary.flaky += 1;
 }
 
-/** Numeric keys merged when combining the summaries of several report files. */
-const SUMMARY_KEYS = ['total', 'passed', 'failed', 'skipped', 'flaky', 'duration'];
+/**
+ * Fold one parsed record into a running summary: total + the matching status
+ * counter + duration. Every `parseX()` buffered wrapper does this same
+ * three-line sequence; centralising it means the aggregation contract only
+ * has to change in one place (as it did when `flaky` was added).
+ */
+function accumulate(summary, rec) {
+  summary.total += 1;
+  countStatus(summary, rec.status);
+  summary.duration += rec.duration || 0;
+}
+
+/** `value` as an array: itself if already one, `[value]` if truthy, else `[]`. */
+const asArray = (value) => (Array.isArray(value) ? value : value ? [value] : []);
+
+/** A test-case record with every field defaulted, so downstream code stays simple. */
+function makeCase(partial) {
+  return {
+    title: '',
+    status: 'passed',
+    duration: 0,
+    errorMessage: '',
+    errorStack: '',
+    file: null,
+    suite: null,
+    project: null,
+    line: null,
+    retries: 0,
+    flaky: false,
+    attachments: [],
+    stdout: '',
+    stderr: '',
+    ...partial,
+  };
+}
+
+/** Seconds (JUnit/NUnit's native unit) to whole milliseconds (the pipeline's unit). */
+const secondsToMs = (value) => Math.round((parseFloat(value) || 0) * 1000);
 
 module.exports = {
   emptySummary,
@@ -82,5 +118,8 @@ module.exports = {
   countStatus,
   stripAnsi,
   sanitizeXmlChunk,
-  SUMMARY_KEYS,
+  accumulate,
+  asArray,
+  makeCase,
+  secondsToMs,
 };

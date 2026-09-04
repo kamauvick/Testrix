@@ -3,33 +3,14 @@
 const fs = require('node:fs');
 
 // `cheerio` is only needed for HTML reports - load it lazily (see excel.js).
-const { emptySummary, normaliseStatus, countStatus, stripAnsi } = require('./shared');
+const { emptySummary, normaliseStatus, stripAnsi, accumulate, makeCase } = require('./shared');
 const { clampField } = require('../limits');
-
-/** A test case object with every field defaulted. */
-const makeCase = (partial) => ({
-  title: '',
-  status: 'passed',
-  duration: 0,
-  errorMessage: '',
-  errorStack: '',
-  file: null,
-  suite: null,
-  project: null,
-  line: null,
-  retries: 0,
-  flaky: false,
-  attachments: [],
-  stdout: '',
-  stderr: '',
-  ...partial,
-});
 
 /**
  * Parse an HTML test report, looking for the common `.test-case` / `tr.test`
  * row patterns produced by Mocha/Jest-style HTML reporters.
  * @param {string} filePath
- * @returns {Promise<{ summary: ReturnType<typeof emptySummary>, testCases: object[] }>}
+ * @returns {Promise<{ summary: ReturnType<typeof emptySummary>, testCases: object[], startTime: null, endTime: null }>}
  */
 async function parseHtml(filePath) {
   const raw = fs.readFileSync(filePath, 'utf8');
@@ -56,21 +37,17 @@ async function parseHtml(filePath) {
     const duration = parseFloat($el.find('.duration, .time').first().text()) || 0;
     const error = $el.find('.error, .failure, .message').first().text().trim();
 
-    testCases.push(
-      makeCase({
-        title: $el.find('.name, .test-name').first().text().trim(),
-        status,
-        duration,
-        errorMessage: clampField(stripAnsi(error)),
-      }),
-    );
-
-    summary.total += 1;
-    countStatus(summary, status);
-    summary.duration += duration;
+    const rec = makeCase({
+      title: $el.find('.name, .test-name').first().text().trim(),
+      status,
+      duration,
+      errorMessage: clampField(stripAnsi(error)),
+    });
+    testCases.push(rec);
+    accumulate(summary, rec);
   });
 
-  return { summary, testCases };
+  return { summary, testCases, startTime: null, endTime: null };
 }
 
 module.exports = { parseHtml };

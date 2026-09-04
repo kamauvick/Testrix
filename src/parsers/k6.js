@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 
-const { countStatus, emptySummary } = require('./shared');
+const { emptySummary, accumulate, asArray } = require('./shared');
 
 /**
  * Error thrown when a `.json` file is valid JSON but not a k6 summary export.
@@ -14,8 +14,6 @@ class NotK6JsonError extends Error {
     this.skippable = true;
   }
 }
-
-const asArray = (value) => (Array.isArray(value) ? value : value ? [value] : []);
 
 /**
  * Does this parsed object look like a k6 `--summary-export` / `handleSummary`
@@ -138,9 +136,7 @@ async function parseK6(filePath) {
   const testCases = [];
   for await (const rec of streamK6(filePath, acc)) {
     testCases.push(rec);
-    summary.total += 1;
-    countStatus(summary, rec.status);
-    summary.duration += rec.duration || 0;
+    accumulate(summary, rec);
   }
   return { summary, testCases, startTime: acc.startTime, endTime: acc.endTime };
 }

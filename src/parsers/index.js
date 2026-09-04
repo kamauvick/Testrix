@@ -19,7 +19,7 @@ const { parseTap, streamTap } = require('./tap');
 const { parseJMeter, streamJMeter } = require('./jmeter');
 const { parseTrx, streamTrx } = require('./trx');
 const { sniffXmlFormat, sniffJsonFormat } = require('./sniff');
-const { emptySummary, normaliseStatus, countStatus, stripAnsi, SUMMARY_KEYS } = require('./shared');
+const { emptySummary, normaliseStatus, countStatus, stripAnsi } = require('./shared');
 
 const XML_PARSERS = { junit: parseJUnit, testng: parseTestNG, nunit: parseNUnit };
 const XML_STREAMERS = { junit: streamJUnit, testng: streamTestNG, nunit: streamNUnit };
@@ -142,5 +142,4 @@ module.exports = {
   normaliseStatus,
   countStatus,
   stripAnsi,
-  SUMMARY_KEYS,
 };

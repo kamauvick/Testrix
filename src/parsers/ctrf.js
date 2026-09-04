@@ -2,8 +2,8 @@
 
 const fs = require('node:fs');
 
-const { stripAnsi, normaliseStatus, countStatus, emptySummary } = require('./shared');
-const { clampField } = require('../limits');
+const { stripAnsi, normaliseStatus, emptySummary, accumulate, asArray } = require('./shared');
+const { clampField, toInt } = require('../limits');
 
 /** Error thrown when a `.json` file is valid JSON but not a CTRF report. */
 class NotCtrfJsonError extends Error {
@@ -13,8 +13,6 @@ class NotCtrfJsonError extends Error {
     this.skippable = true;
   }
 }
-
-const asArray = (value) => (Array.isArray(value) ? value : value ? [value] : []);
 
 /** Does this parsed object look like a CTRF (Common Test Report Format) report? */
 function looksLikeCtrf(parsed) {
@@ -39,7 +37,7 @@ function buildRecord(test) {
     file: test.filePath || test.file || null,
     suite: test.suite || null,
     project: test.browser || test.tags?.project || null,
-    line: Number(test.line) || null,
+    line: toInt(test.line, null), // preserves a legitimate line 0 instead of nulling it
     retries: Number(test.retries) || 0,
     flaky: Boolean(test.flaky),
     attachments: asArray(test.screenshot ? [{ name: 'screenshot', path: test.screenshot }] : []),
@@ -87,9 +85,7 @@ async function parseCtrf(filePath) {
   const testCases = [];
   for await (const rec of streamCtrf(filePath, acc)) {
     testCases.push(rec);
-    summary.total += 1;
-    countStatus(summary, rec.status);
-    summary.duration += rec.duration || 0;
+    accumulate(summary, rec);
   }
   return { summary, testCases, startTime: acc.startTime ?? null, endTime: acc.endTime ?? null };
 }
@@ -127,7 +123,7 @@ function toCtrf({ testCases, summary, startTime, endTime }) {
         duration: tc.duration,
         suite: tc.suite || undefined,
         filePath: tc.file || undefined,
-        line: tc.line || undefined,
+        line: Number.isFinite(tc.line) ? tc.line : undefined,
         message: tc.errorMessage || undefined,
         trace: tc.errorStack || undefined,
         retries: tc.retries || undefined,

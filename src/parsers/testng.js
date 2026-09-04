@@ -3,31 +3,15 @@
 const fs = require('node:fs');
 const { SaxesParser } = require('saxes');
 
-const { stripAnsi, sanitizeXmlChunk, emptySummary, countStatus } = require('./shared');
+const {
+  stripAnsi,
+  sanitizeXmlChunk,
+  normaliseStatus,
+  emptySummary,
+  accumulate,
+  makeCase,
+} = require('./shared');
 const { clampField } = require('../limits');
-
-const STATUS_MAP = { PASS: 'passed', FAIL: 'failed', SKIP: 'skipped' };
-
-/** A test-case record with every field defaulted. */
-function makeCase(partial) {
-  return {
-    title: '',
-    status: 'passed',
-    duration: 0,
-    errorMessage: '',
-    errorStack: '',
-    file: null,
-    suite: null,
-    project: null,
-    line: null,
-    retries: 0,
-    flaky: false,
-    attachments: [],
-    stdout: '',
-    stderr: '',
-    ...partial,
-  };
-}
 
 /**
  * Streaming reader for TestNG's `testng-results.xml` (Selenium-via-TestNG,
@@ -92,7 +76,7 @@ class TestNGSaxReader {
         }
         this._method = {
           name: attrs.name || attrs.signature || '',
-          status: STATUS_MAP[attrs.status] || 'passed',
+          status: normaliseStatus(attrs.status || 'passed'),
           durationMs: Number(attrs['duration-ms']) || 0,
           message: '',
           stack: '',
@@ -181,9 +165,7 @@ async function parseTestNG(filePath) {
   const testCases = [];
   for await (const rec of streamTestNG(filePath, acc)) {
     testCases.push(rec);
-    summary.total += 1;
-    countStatus(summary, rec.status);
-    summary.duration += rec.duration || 0;
+    accumulate(summary, rec);
   }
   return { summary, testCases, startTime: acc.startTime, endTime: acc.endTime };
 }

@@ -3,31 +3,10 @@
 const fs = require('node:fs');
 const { SaxesParser } = require('saxes');
 
-const { stripAnsi, sanitizeXmlChunk, emptySummary, countStatus } = require('./shared');
+const { stripAnsi, sanitizeXmlChunk, emptySummary, accumulate, makeCase } = require('./shared');
 const { clampField } = require('../limits');
 
 const OUTCOME_MAP = { Passed: 'passed', Failed: 'failed', NotExecuted: 'skipped' };
-
-/** A test-case record with every field defaulted. */
-function makeCase(partial) {
-  return {
-    title: '',
-    status: 'passed',
-    duration: 0,
-    errorMessage: '',
-    errorStack: '',
-    file: null,
-    suite: null,
-    project: null,
-    line: null,
-    retries: 0,
-    flaky: false,
-    attachments: [],
-    stdout: '',
-    stderr: '',
-    ...partial,
-  };
-}
 
 /** `HH:MM:SS.fffffff` (.trx's own format) to whole milliseconds. */
 function durationToMs(text) {
@@ -186,9 +165,7 @@ async function parseTrx(filePath) {
   const testCases = [];
   for await (const rec of streamTrx(filePath, acc)) {
     testCases.push(rec);
-    summary.total += 1;
-    countStatus(summary, rec.status);
-    summary.duration += rec.duration || 0;
+    accumulate(summary, rec);
   }
   return { summary, testCases, startTime: acc.startTime, endTime: acc.endTime };
 }

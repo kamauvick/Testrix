@@ -8,30 +8,11 @@ const {
   sanitizeXmlChunk,
   normaliseStatus,
   emptySummary,
-  countStatus,
+  accumulate,
+  makeCase,
+  secondsToMs,
 } = require('./shared');
 const { clampField } = require('../limits');
-
-/** A test-case record with every field defaulted. */
-function makeCase(partial) {
-  return {
-    title: '',
-    status: 'passed',
-    duration: 0,
-    errorMessage: '',
-    errorStack: '',
-    file: null,
-    suite: null,
-    project: null,
-    line: null,
-    retries: 0,
-    flaky: false,
-    attachments: [],
-    stdout: '',
-    stderr: '',
-    ...partial,
-  };
-}
 
 const CAPTURE_TAGS = new Set(['message', 'stack-trace', 'output']);
 
@@ -88,7 +69,7 @@ class NUnitSaxReader {
         name: attrs.name || attrs.fullname || '',
         classname: attrs.classname || null,
         status: normaliseStatus(attrs.result || 'passed'),
-        duration: Math.round((parseFloat(attrs.duration) || 0) * 1000),
+        duration: secondsToMs(attrs.duration),
         message: '',
         stack: '',
       };
@@ -168,9 +149,7 @@ async function parseNUnit(filePath) {
   const testCases = [];
   for await (const rec of streamNUnit(filePath, acc)) {
     testCases.push(rec);
-    summary.total += 1;
-    countStatus(summary, rec.status);
-    summary.duration += rec.duration || 0;
+    accumulate(summary, rec);
   }
   return { summary, testCases, startTime: acc.startTime, endTime: acc.endTime };
 }

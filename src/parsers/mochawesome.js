@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 
-const { stripAnsi, normaliseStatus, countStatus, emptySummary } = require('./shared');
+const { stripAnsi, normaliseStatus, emptySummary, accumulate, asArray } = require('./shared');
 const { clampField } = require('../limits');
 
 /**
@@ -15,8 +15,6 @@ class NotMochawesomeJsonError extends Error {
     this.skippable = true;
   }
 }
-
-const asArray = (value) => (Array.isArray(value) ? value : value ? [value] : []);
 
 /** Does this parsed object look like a Mochawesome report? */
 function looksLikeMochawesome(parsed) {
@@ -104,9 +102,7 @@ async function parseMochawesome(filePath) {
   const testCases = [];
   for await (const rec of streamMochawesome(filePath, acc)) {
     testCases.push(rec);
-    summary.total += 1;
-    countStatus(summary, rec.status);
-    summary.duration += rec.duration || 0;
+    accumulate(summary, rec);
   }
   return { summary, testCases, startTime: acc.startTime ?? null, endTime: acc.endTime ?? null };
 }

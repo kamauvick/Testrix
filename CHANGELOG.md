@@ -161,6 +161,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so a symlink loop terminates instead of recursing forever.
 - GitHub Action references are pinned to commit SHAs, not mutable tags.
 
+### Fixed
+
+_Found by a multi-angle `/code-review` pass over this branch's diff._
+
+- **Mochawesome vs. Playwright JSON sniffing collided.** Both formats contain
+  the byte-substring `"results":[` (Mochawesome's own `results` array,
+  Playwright's per-attempt `test.results`), so the old prefix-regex sniffer
+  could misclassify one as the other. `.json` files under the streaming
+  threshold are now classified by actually `JSON.parse`-ing them and checking
+  real top-level keys (`sniffJsonFormat` → `classifyParsedJson`); the regex
+  heuristic is kept only as a documented fallback for files too large to parse
+  just to sniff.
+- **A `line: 0` attribute was silently turned into `line: null`** across
+  JUnit, CTRF, and Playwright JSON parsing/writing (`X || null` treats `0` as
+  falsy). Every site now uses `toInt(value, fallback)` or `Number.isFinite`
+  instead, so a legitimate line 0 survives.
+- **A `<error>` reported directly under a nested `<testsuite>` could be
+  attributed to the wrong (ancestor) suite** if suites closed out of the naive
+  order a flat error list assumed. JUnit's suite-level error tracking is now a
+  stack of per-suite-level buckets (`_suiteErrorStack`), so a `</testsuite>`
+  close only drains its own suite's errors, never an ancestor's.
+- `--reports`/`reportFiles` override detection (`reportsToOverrides`) used a
+  hand-maintained extension regex that had drifted from the real parser table
+  and was missing `.trx`, `.jtl`, and `.tap`; it now checks the exported
+  `REPORT_EXTENSIONS` set directly, so it can't drift again.
+- `--debug-bundle` wrote its JSON snapshot without running it through the
+  logger's secret redaction, unlike every other output path; it now calls
+  `log.redact()` first.
+- A sniff-time file-read failure inside `parseReports` could abort the whole
+  run instead of being skipped and warned about, because `streamParserForFile`
+  was called outside its own try/catch.
+- An extensionless file sniffed as TestNG or NUnit (not just the JUnit
+  fallback) that then failed to parse could abort the whole run instead of
+  being skipped - `isSkippable`'s extensionless-file carve-out only checked
+  for the JUnit streamer.
+- `src/glob.js`'s `globToRegExp` threw a `SyntaxError` on a glob with an
+  unbalanced `[` (treated as a literal now) and didn't support `[abc]` /
+  `[!abc]` character classes at all; both now work.
+- `src/parsers/html.js` and `excel.js` omitted `startTime`/`endTime` from
+  their return value entirely, contradicting the `ParseResult` type in
+  `src/index.d.ts`; both now explicitly return `null` for each.
+- **Cleanup:** `makeCase()`, `asArray()`, the summary-accumulation snippet, and
+  JUnit/NUnit's seconds-to-milliseconds conversion were each copy-pasted
+  across 4–10 parser files; they now live once in `src/parsers/shared.js`
+  (`makeCase`, `asArray`, `accumulate`, `secondsToMs`) and every parser
+  imports them. TestNG's hand-rolled `STATUS_MAP` (which silently defaulted an
+  unrecognised status to `passed`) is gone in favour of the same
+  `normaliseStatus()` every other parser uses. JMeter's `.jtl` XML/CSV sniff
+  now reuses `sniff.js`'s `peek()` instead of duplicating the file-peek logic.
+
 ## [1.2.0]
 
 - Baseline: parse JUnit / HTML / Excel reports and publish to the dashboard API.

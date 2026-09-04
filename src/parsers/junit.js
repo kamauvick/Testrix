@@ -4,8 +4,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { SaxesParser } = require('saxes');
 
-const { emptySummary, countStatus, stripAnsi, sanitizeXmlChunk } = require('./shared');
-const { clampField } = require('../limits');
+const {
+  emptySummary,
+  accumulate,
+  stripAnsi,
+  sanitizeXmlChunk,
+  makeCase,
+  secondsToMs,
+} = require('./shared');
+const { clampField, toInt } = require('../limits');
 
 // Longest ANSI/control run we might split across a stream chunk boundary.
 const CHUNK_CARRY = 24;
@@ -14,36 +21,6 @@ const CHUNK_CARRY = 24;
 // legitimately huge, but a malformed or adversarial attribute value shouldn't
 // be able to bloat a record either.
 const TITLE_CAP = 4096;
-
-const toInt = (value) => {
-  const n = parseInt(value, 10);
-  return Number.isFinite(n) ? n : 0;
-};
-
-// JUnit <testcase time="..."> is in seconds; the pipeline works in milliseconds
-// so sub-second durations survive the integer rounding in the payload.
-const secondsToMs = (value) => Math.round((parseFloat(value) || 0) * 1000);
-
-/** A test-case record with every field defaulted, so downstream code stays simple. */
-function makeCase(partial) {
-  return {
-    title: '',
-    status: 'passed',
-    duration: 0,
-    errorMessage: '',
-    errorStack: '',
-    file: null,
-    suite: null,
-    project: null,
-    line: null,
-    retries: 0,
-    flaky: false,
-    attachments: [],
-    stdout: '',
-    stderr: '',
-    ...partial,
-  };
-}
 
 /** Pull `[[ATTACHMENT|path]]` markers (Playwright) out of <system-out> text. */
 function parseAttachments(systemOut) {
@@ -90,7 +67,10 @@ class JUnitSaxReader {
     this._rootFailures = 0;
     this._sawTestsuites = false;
     this._tc = null; // current <testcase> accumulator
-    this._suiteErrors = []; // <error> directly under a <testsuite>
+    // <error> directly under a <testsuite>, one bucket per currently-open
+    // suite level (parallel to _suiteStack) - a flat list would let a nested
+    // child suite's close drain an ancestor's not-yet-attributed error too.
+    this._suiteErrorStack = [];
     this._capture = null; // { tag, attrs, buf }
 
     const parser = new SaxesParser({ fileName });
@@ -159,15 +139,15 @@ class JUnitSaxReader {
 
     if (name === 'testsuites') {
       this._sawTestsuites = true;
-      this._rootErrors = toInt(attrs.errors);
-      this._rootFailures = toInt(attrs.failures);
+      this._rootErrors = toInt(attrs.errors, 0);
+      this._rootFailures = toInt(attrs.failures, 0);
       return;
     }
 
     if (name === 'testsuite') {
       if (!this._sawTestsuites) {
-        this._rootErrors += toInt(attrs.errors);
-        this._rootFailures += toInt(attrs.failures);
+        this._rootErrors += toInt(attrs.errors, 0);
+        this._rootFailures += toInt(attrs.failures, 0);
       }
       const parentProject = this._suiteStack.length
         ? this._suiteStack[this._suiteStack.length - 1].project
@@ -176,6 +156,7 @@ class JUnitSaxReader {
         name: attrs.name || '',
         project: attrs.hostname || parentProject || null,
       });
+      this._suiteErrorStack.push([]);
       const started = Date.parse(attrs.timestamp);
       if (Number.isFinite(started)) {
         const ended = started + (parseFloat(attrs.time) || 0) * 1000;
@@ -232,7 +213,10 @@ class JUnitSaxReader {
     if (name === 'testsuite') {
       const suitePath = this._suitePath();
       const suite = this._suiteStack[this._suiteStack.length - 1];
-      for (const err of this._suiteErrors.splice(0)) {
+      // Only this suite's own bucket - not any ancestor's, which stays on the
+      // stack until *its* </testsuite> closes.
+      const ownErrors = this._suiteErrorStack.pop() || [];
+      for (const err of ownErrors) {
         this._push(
           makeCase({
             title: suite && suite.name ? `${suite.name} (suite error)` : 'Test suite error',
@@ -261,8 +245,11 @@ class JUnitSaxReader {
         if (tc) tc.failure = detail;
         break;
       case 'error':
-        if (tc) tc.error = detail;
-        else this._suiteErrors.push(detail);
+        if (tc) {
+          tc.error = detail;
+        } else if (this._suiteErrorStack.length) {
+          this._suiteErrorStack[this._suiteErrorStack.length - 1].push(detail);
+        }
         break;
       case 'flakyFailure':
       case 'flakyError':
@@ -319,7 +306,7 @@ class JUnitSaxReader {
       project,
       file: clampField(attrs.file || attrs.class || attrs.classname || null, TITLE_CAP) || null,
       suite: clampField(this._suitePath(), TITLE_CAP) || null,
-      line: toInt(attrs.line) || null,
+      line: toInt(attrs.line, null), // toInt(x, null): null when absent/invalid, 0 preserved when present
       retries: tc.flaky.length + tc.rerun.length,
       flaky: status === 'flaky',
       attachments: parseAttachments(systemOut),
@@ -374,9 +361,7 @@ async function parseJUnit(filePath) {
   const testCases = [];
   for await (const rec of streamJUnit(filePath, acc)) {
     testCases.push(rec);
-    summary.total += 1;
-    countStatus(summary, rec.status);
-    summary.duration += rec.duration || 0;
+    accumulate(summary, rec);
   }
   return { summary, testCases, startTime: acc.startTime ?? null, endTime: acc.endTime ?? null };
 }

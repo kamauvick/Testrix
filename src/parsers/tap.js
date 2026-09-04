@@ -3,33 +3,12 @@
 const fs = require('node:fs');
 const readline = require('node:readline');
 
-const { stripAnsi, emptySummary, countStatus } = require('./shared');
+const { stripAnsi, emptySummary, accumulate, makeCase } = require('./shared');
 const { clampField } = require('../limits');
 
 const TEST_LINE = /^(not )?ok\b\s*(\d+)?\s*-?\s*(.*)$/;
 const DIRECTIVE = /#\s*(SKIP|TODO)\b\s*(.*)$/i;
 const YAML_KV = /^(\w[\w-]*)\s*:\s?(.*)$/;
-
-/** A test-case record with every field defaulted. */
-function makeCase(partial) {
-  return {
-    title: '',
-    status: 'passed',
-    duration: 0,
-    errorMessage: '',
-    errorStack: '',
-    file: null,
-    suite: null,
-    project: null,
-    line: null,
-    retries: 0,
-    flaky: false,
-    attachments: [],
-    stdout: '',
-    stderr: '',
-    ...partial,
-  };
-}
 
 /** Does the first non-empty line look like a TAP stream? */
 function looksLikeTap(firstLine) {
@@ -149,9 +128,7 @@ async function parseTap(filePath) {
   const testCases = [];
   for await (const rec of streamTap(filePath, acc)) {
     testCases.push(rec);
-    summary.total += 1;
-    countStatus(summary, rec.status);
-    summary.duration += rec.duration || 0;
+    accumulate(summary, rec);
   }
   return { summary, testCases, startTime: acc.startTime, endTime: acc.endTime };
 }

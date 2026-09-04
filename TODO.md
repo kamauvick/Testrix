@@ -88,6 +88,7 @@ Everything below assumes a known server contract. The `dashboard-api` repo's
 - [x] Fuzz-ish coverage of the JUnit stream parser: unclosed root tag (rejected cleanly, doesn't hang), a 1MB attribute value (clamped, doesn't bloat the record), entity-expansion / billion-laughs (rejected - `test/junit-stream.test.js`). Not a property-based fuzzer; a handful of targeted adversarial fixtures.
 - [x] Nightly load test: synthetic 100k / 1M generators, assert peak RSS + wall time (E1: `.github/workflows/load-test.yml`).
 - [x] A golden-output test for `buildPayload` (`test/parsers.test.js`) - a fixed multi-project mixed-result input asserted against a fully hard-coded expected payload. Not per-fixture `--dry-run` snapshots for every format yet.
+- [x] Multi-angle `/code-review` pass over this branch's diff, findings fixed: a Mochawesome/Playwright JSON sniff collision, `line: 0` silently becoming `null` in three parsers, cross-suite JUnit error misattribution, a stale `reportsToOverrides` extension regex, an unredacted `--debug-bundle`, a sniff failure that could abort a whole run instead of skipping one file, `globToRegExp` rejecting `[...]` character classes, `html`/`excel` parsers omitting `startTime`/`endTime`, and duplicated `makeCase`/`asArray`/accumulation/seconds-to-ms helpers consolidated into `src/parsers/shared.js`. Full detail in `CHANGELOG.md`'s Fixed section.
 
 ## E7 — Security hardening · P1 · M
 

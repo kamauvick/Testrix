@@ -26,6 +26,22 @@ function globToRegExp(glob) {
       }
     } else if (c === '?') {
       re += '[^/]';
+    } else if (c === '[') {
+      const end = glob.indexOf(']', i + 1);
+      if (end === -1) {
+        // No matching ']' - this was never a real character class (e.g. a
+        // literal '[' in a filename/build number); treat it as a literal
+        // character rather than emitting invalid regex syntax.
+        re += '\\[';
+      } else {
+        let body = glob.slice(i + 1, end);
+        const negate = body[0] === '!' || body[0] === '^';
+        if (negate) body = body.slice(1);
+        // Keep '-' (ranges) meaningful; escape backslashes so they can't
+        // start an unintended regex escape inside the class.
+        re += `[${negate ? '^' : ''}${body.replace(/\\/g, '\\\\')}]`;
+        i = end;
+      }
     } else if (c === '{') {
       const end = glob.indexOf('}', i);
       if (end === -1) {

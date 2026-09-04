@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 
-const { normaliseStatus, countStatus, stripAnsi, emptySummary } = require('./shared');
+const { normaliseStatus, stripAnsi, emptySummary, accumulate, asArray } = require('./shared');
 const { clampField, toInt } = require('../limits');
 
 // Above this size, parse via stream-json instead of JSON.parse so a huge report
@@ -24,8 +24,6 @@ class NotPlaywrightJsonError extends Error {
     this.skippable = true;
   }
 }
-
-const asArray = (value) => (Array.isArray(value) ? value : value ? [value] : []);
 
 /** Flatten Playwright's `stdout` / `stderr` (`[{text}|{buffer}]`) to a string. */
 function streamText(entries) {
@@ -118,7 +116,7 @@ function walkSuites(suites, parentTitles, parentFile, out) {
           file,
           suite: suitePath,
           project,
-          line: Number(spec.line) || Number(test.line) || null,
+          line: toInt(spec.line, null) ?? toInt(test.line, null), // preserves a legitimate line 0
           retries: info.retries,
           flaky: info.flaky,
           attachments: info.attachments,
@@ -143,7 +141,7 @@ function runErrorRecord(err) {
     file: (err && err.location && err.location.file) || null,
     suite: null,
     project: null,
-    line: (err && err.location && err.location.line) || null,
+    line: toInt(err && err.location && err.location.line, null),
     retries: 0,
     flaky: false,
     attachments: [],
@@ -285,9 +283,7 @@ async function parsePlaywrightJson(filePath) {
   const testCases = [];
   for await (const rec of streamPlaywrightJson(filePath, acc)) {
     testCases.push(rec);
-    summary.total += 1;
-    countStatus(summary, rec.status);
-    summary.duration += rec.duration || 0;
+    accumulate(summary, rec);
   }
   return { summary, testCases, startTime: acc.startTime ?? null, endTime: acc.endTime ?? null };
 }

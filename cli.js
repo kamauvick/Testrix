@@ -7,7 +7,12 @@ const path = require('node:path');
 const { version } = require('./package.json');
 const log = require('./src/logger');
 const { loadConfig } = require('./src/config');
-const { publishTestReports, discoverReportFiles, parseReports } = require('./src/publisher');
+const {
+  publishTestReports,
+  discoverReportFiles,
+  parseReports,
+  REPORT_EXTENSIONS,
+} = require('./src/publisher');
 const { detectCiMetadata } = require('./src/ci');
 const { toCtrf } = require('./src/parsers/ctrf');
 
@@ -140,12 +145,20 @@ function parseArgs(args) {
   return parsed;
 }
 
-/** Turn `--reports` values (dir / file / glob) into reportsDir + reportFiles overrides. */
+/**
+ * Turn `--reports` values (dir / file / glob) into reportsDir + reportFiles
+ * overrides. A value is treated as a file/glob when it has a glob
+ * metacharacter or an extension we actually parse (REPORT_EXTENSIONS, the
+ * same list discoverReportFiles/enumerateDirectory use - keeping one source
+ * of truth means a new format's extension can't be forgotten here).
+ */
 function reportsToOverrides(values, overrides) {
   if (values.length === 0) return;
   const files = [];
   for (const value of values) {
-    if (/[*?[\]{}]/.test(value) || /\.(xml|json|html?|xls[xm]?)$/i.test(value)) files.push(value);
+    const isFileLike =
+      /[*?[\]{}]/.test(value) || REPORT_EXTENSIONS.has(path.extname(value).toLowerCase());
+    if (isFileLike) files.push(value);
     else overrides.reportsDir = value;
   }
   if (files.length > 0) overrides.reportFiles = files;
@@ -204,7 +217,13 @@ const CI_SNIPPETS = {
  */
 function writeDebugBundle(bundlePath, data) {
   try {
-    fs.writeFileSync(path.resolve(bundlePath), `${JSON.stringify(data, null, 2)}\n`);
+    // Redact over the serialised JSON, not just known fields like
+    // config.apiKey: an upload error can echo request/response content
+    // (e.g. a gateway quoting back "Invalid x-api-key: <key>") into
+    // `error`, and this catches that wherever it ends up, not just the
+    // one field we thought to mask.
+    const json = log.redact(JSON.stringify(data, null, 2));
+    fs.writeFileSync(path.resolve(bundlePath), `${json}\n`);
     log.info(`Wrote debug bundle to ${path.resolve(bundlePath)}`);
   } catch (err) {
     log.warn(`Could not write debug bundle to ${bundlePath}: ${err.message}`);

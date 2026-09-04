@@ -2,27 +2,8 @@
 
 // `xlsx` is heavy and only needed for `.xls`/`.xlsx` reports - load it lazily so
 // the common JUnit / Playwright path never pays for it.
-const { emptySummary, normaliseStatus, countStatus, stripAnsi } = require('./shared');
+const { emptySummary, normaliseStatus, stripAnsi, accumulate, makeCase } = require('./shared');
 const { clampField } = require('../limits');
-
-/** A test case object with every field defaulted. */
-const makeCase = (partial) => ({
-  title: '',
-  status: 'passed',
-  duration: 0,
-  errorMessage: '',
-  errorStack: '',
-  file: null,
-  suite: null,
-  project: null,
-  line: null,
-  retries: 0,
-  flaky: false,
-  attachments: [],
-  stdout: '',
-  stderr: '',
-  ...partial,
-});
 
 const firstDefined = (row, keys) => {
   for (const key of keys) {
@@ -36,7 +17,7 @@ const firstDefined = (row, keys) => {
  * columns like Test Name / Status / Duration / Error (case-sensitive, several
  * aliases accepted).
  * @param {string} filePath
- * @returns {Promise<{ summary: ReturnType<typeof emptySummary>, testCases: object[] }>}
+ * @returns {Promise<{ summary: ReturnType<typeof emptySummary>, testCases: object[], startTime: null, endTime: null }>}
  */
 async function parseExcel(filePath) {
   let XLSX;
@@ -59,11 +40,7 @@ async function parseExcel(filePath) {
     const status = normaliseStatus(firstDefined(row, ['Status', 'Result', 'State']));
     const duration = parseFloat(firstDefined(row, ['Duration', 'Time', 'Elapsed'])) || 0;
 
-    summary.total += 1;
-    countStatus(summary, status);
-    summary.duration += duration;
-
-    return makeCase({
+    const rec = makeCase({
       title: firstDefined(row, ['Test Name', 'Name', 'Test', 'Title']) || '',
       status,
       duration,
@@ -71,9 +48,11 @@ async function parseExcel(filePath) {
       file: firstDefined(row, ['File', 'Suite', 'Class']) || null,
       suite: firstDefined(row, ['Suite', 'Module', 'Group']) || null,
     });
+    accumulate(summary, rec);
+    return rec;
   });
 
-  return { summary, testCases };
+  return { summary, testCases, startTime: null, endTime: null };
 }
 
 module.exports = { parseExcel };

@@ -4,8 +4,9 @@ const fs = require('node:fs');
 const readline = require('node:readline');
 const { SaxesParser } = require('saxes');
 
-const { emptySummary, countStatus } = require('./shared');
+const { emptySummary, accumulate } = require('./shared');
 const { clampField } = require('../limits');
+const { peek } = require('./sniff');
 
 /**
  * Aggregates JMeter samples by `label` (transaction/request name) rather than
@@ -230,14 +231,7 @@ async function* streamJMeterXml(filePath, acc) {
 
 /** Peek at a `.jtl` file's first non-whitespace bytes to tell XML from CSV. */
 function sniffJtlIsXml(filePath) {
-  const fd = fs.openSync(filePath, 'r');
-  try {
-    const buf = Buffer.alloc(256);
-    const n = fs.readSync(fd, buf, 0, buf.length, 0);
-    return /^\s*<\?xml|^\s*<testResults/i.test(buf.toString('utf8', 0, n));
-  } finally {
-    fs.closeSync(fd);
-  }
+  return /^\s*<\?xml|^\s*<testResults/i.test(peek(filePath, 256));
 }
 
 /**
@@ -264,9 +258,7 @@ async function parseJMeter(filePath) {
   const testCases = [];
   for await (const rec of streamJMeter(filePath, acc)) {
     testCases.push(rec);
-    summary.total += 1;
-    countStatus(summary, rec.status);
-    summary.duration += rec.duration || 0;
+    accumulate(summary, rec);
   }
   return { summary, testCases, startTime: acc.startTime ?? null, endTime: acc.endTime ?? null };
 }
