@@ -220,6 +220,18 @@ _Found by a multi-angle `/code-review` pass over this branch's diff._
   `*.html` - real captured output from Playwright/k6/Mochawesome that's
   meant to stay byte-faithful to what those tools actually produce. Added
   `.prettierignore` covering `test/fixtures/` (and `package-lock.json`).
+- **`npm ci` failed outright on Node 18.17**, the minimum version this
+  project declares support for (`engines.node` and the CI matrix both say
+  `18.17`): `undici@7` requires Node `>=20.18.1`, and `engine-strict=true`
+  turns that mismatch into a hard install failure rather than a warning.
+  Downgraded to `undici@^6.28.1` (still `>=18.17`, same `fetch`/`ProxyAgent`
+  API this project actually uses).
+- **CI:** `npm run format:check` failed on every file on `windows-latest`
+  (but not `ubuntu-latest`) because GitHub's Windows runners check code out
+  with CRLF line endings by default (`core.autocrlf=true`) while Prettier
+  enforces LF - every file looked "unformatted" without actually being so.
+  Added `.gitattributes` (`* text=auto eol=lf`) to force LF on checkout
+  regardless of the runner's `core.autocrlf`.
 
 ## [1.2.0]
 

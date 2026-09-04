@@ -1,0 +1,6 @@
+# Normalise everything to LF on checkout, regardless of the platform or the
+# runner's core.autocrlf. Without this, windows-latest GitHub Actions runners
+# (core.autocrlf=true by default) check every text file out with CRLF, and
+# `prettier --check` (which enforces LF) then fails on every file even though
+# nothing is actually misformatted.
+* text=auto eol=lf
