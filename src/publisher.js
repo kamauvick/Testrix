@@ -9,7 +9,16 @@ const { isGlob, expandAll } = require('./glob');
 const { submitReport, deriveRunUrl } = require('./http');
 const { redactUrl } = require('./redact');
 
-const REPORT_EXTENSIONS = new Set(['.xml', '.json', '.jtl', '.tap', '.html', '.htm', '.xls', '.xlsx']);
+const REPORT_EXTENSIONS = new Set([
+  '.xml',
+  '.json',
+  '.jtl',
+  '.tap',
+  '.html',
+  '.htm',
+  '.xls',
+  '.xlsx',
+]);
 
 // `.json` files that live next to reports but are never test reports themselves.
 const NON_REPORT_JSON = new Set([
@@ -269,39 +278,66 @@ function buildPayload(config, { testCases, suites, startTime, endTime }) {
 
 /**
  * Discover, parse and publish test reports described by `config`.
+ *
+ * `options.onEvent(name, data)` - if given - is called at each stage
+ * (`discover`, `parse`, `upload:start`, `upload:done`) for callers that want
+ * progress rather than just the final promise; see {@link createReporter}.
  * @param {import('./config').TestrixConfig} config
- * @param {{ dryRun?: boolean, retries?: number, timeoutMs?: number, gzip?: boolean, maxUploadBytes?: number }} [options]
- * @returns {Promise<{ summary: object, published: number, testRunId?: string, url?: string, dryRun: boolean }>}
+ * @param {{ dryRun?: boolean, retries?: number, timeoutMs?: number, gzip?: boolean, maxUploadBytes?: number, onEvent?: (name: string, data: object) => void }} [options]
+ * @returns {Promise<{ summary: object, published: number, testRunId?: string, url?: string, dryRun: boolean, timings: { discoverMs: number, parseMs: number, uploadMs: number } }>}
  */
 async function publishTestReports(config, options = {}) {
-  const { dryRun = false } = options;
-  const files = discoverReportFiles(config);
-  log.info(`Found ${files.length} report file(s)`);
+  const { dryRun = false, onEvent = () => {} } = options;
+  const t0 = Date.now();
 
-  const { summary, testCases, suites, startTime, endTime } = await parseReports(files, {
+  const files = discoverReportFiles(config);
+  const t1 = Date.now();
+  log.info(`Found ${files.length} report file(s)`);
+  onEvent('discover', { files });
+
+  const { summary, testCases, suites, startTime, endTime, truncated } = await parseReports(files, {
     maxCases: config.maxCases,
   });
+  const t2 = Date.now();
   const flakyNote = summary.flaky > 0 ? `, ${summary.flaky} flaky` : '';
   log.info(
     `Parsed ${summary.total} test(s): ${summary.passed} passed, ${summary.failed} failed, ` +
       `${summary.skipped} skipped${flakyNote}`,
   );
+  onEvent('parse', { summary, truncated });
 
   const payload = buildPayload(config, { testCases, suites, startTime, endTime });
   if (dryRun) {
     log.info(`Dry run - not publishing. Payload has ${payload.testCases.length} test case(s).`);
     log.debug(JSON.stringify(payload, null, 2));
-    return { summary, published: 0, dryRun: true };
+    onEvent('done', { summary, dryRun: true });
+    return {
+      summary,
+      published: 0,
+      dryRun: true,
+      timings: { discoverMs: t1 - t0, parseMs: t2 - t1, uploadMs: 0 },
+    };
   }
 
   log.info(
     `Publishing ${payload.testCases.length} test case(s) to ${redactUrl(config.serverApiUrl)}`,
   );
+  onEvent('upload:start', { count: payload.testCases.length });
   const { testRunId } = await submitReport(config, payload, options);
+  const t3 = Date.now();
   const url = deriveRunUrl(config.serverApiUrl, testRunId, config.dashboardUrl);
   log.info(`Test results published successfully.${url ? ` View: ${url}` : ''}`);
+  log.debug(`Timing: discover ${t1 - t0}ms, parse ${t2 - t1}ms, upload ${t3 - t2}ms`);
+  onEvent('upload:done', { testRunId, url });
 
-  return { summary, published: payload.testCases.length, testRunId, url, dryRun: false };
+  return {
+    summary,
+    published: payload.testCases.length,
+    testRunId,
+    url,
+    dryRun: false,
+    timings: { discoverMs: t1 - t0, parseMs: t2 - t1, uploadMs: t3 - t2 },
+  };
 }
 
 module.exports = {

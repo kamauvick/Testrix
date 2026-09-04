@@ -5,7 +5,7 @@ run of **any size** — from 10 tests to 1,000,000 — in bounded memory and tim
 and make it speak the formats the industry actually produces (functional **and**
 load/perf tooling).
 
-> **Progress:** **E1, E2a, E4, E5, E7 done.** **E9/E9b: 7 new formats shipped** (TestNG, NUnit3, Mochawesome, CTRF, TAP, k6, JMeter CSV+XML) with content-sniffed dispatch; Robot Framework, `.trx`, Gatling, Locust, `--output ctrf` and the dialect-conformance fixtures remain. E6: coverage gate + nightly load test in place; real-tool fixtures + fuzzing still open. E0 contract doc written (answers owed - blocks E2). E2/E3/E8/E10/E11 not started.
+> **Progress:** **E1, E2a, E3 (bar a parser registry), E4, E5, E7 done.** **E9/E9b: 7 new formats shipped** (TestNG, NUnit3, Mochawesome, CTRF, TAP, k6, JMeter CSV+XML) with content-sniffed dispatch; Robot Framework, `.trx`, Gatling, Locust, `--output ctrf` and the dialect-conformance fixtures remain. E6: coverage gate + nightly load test in place; real-tool fixtures + fuzzing still open. E0 contract doc written (answers owed - blocks E2). E2/E3/E8/E10/E11 not started.
 
 ## Definition of done for "scales regardless of upload size"
 
@@ -38,7 +38,7 @@ Everything below assumes a known server contract. The `dashboard-api` repo's
 - [x] Per-field cap: `errorMessage` / `errorStack` / `stdout` / `stderr` clamped to 16 KB (`TESTRIX_MAX_FIELD_BYTES`) with a `…[truncated]` marker.
 - [x] `--max-cases` ceiling (default 200k, `0` = unlimited): warn + stop reading. `test/junit-stream.test.js` covers it. Verified: 132 MB / 1M-case report parses in constant memory (Δ≈0 MB).
 - [x] **Playwright JSON streaming** — above 20 MB (`TESTRIX_JSON_STREAM_THRESHOLD_BYTES`), `stream-json` assembles the `suites` array one spec-file at a time instead of `JSON.parse`-ing the whole document; `errors`/`stats` (always tiny) are read in full off the same token stream. Below the threshold it's still plain `JSON.parse` - simpler and just as correct for the common case.
-- [ ] Excel/HTML: document the "loads whole file" ceiling in `docs/scaling.md`.
+- [x] Excel/HTML: documented the "loads whole file" ceiling in `docs/scaling.md`.
 - [x] CI: `.github/workflows/load-test.yml` (nightly + manual) runs `scripts/load-test.js` - generates a 1M-case JUnit file and a 200k-case Playwright JSON file, streams both, and fails the job if peak RSS exceeds a budget (default 700 MB).
 
 ## E2 — Chunked, resumable upload protocol v2 · P0 · L · _needs API_
@@ -53,10 +53,10 @@ Everything below assumes a known server contract. The `dashboard-api` repo's
 
 ## E3 — Architecture & module boundaries · P1 · M
 
-- [ ] Split into `discover → parse (stream) → transform → transport`, each independently testable; keep the dependency graph acyclic.
-- [ ] Public API: keep `loadConfig`; add `createReporter(config)` returning `{ run(), on(event) }` for programmatic / CI-plugin use.
-- [ ] Define and document a stable internal `TestCaseRecord` shape; ship `.d.ts`.
-- [ ] Parser registry so third-party formats (CTRF, TAP) can self-register.
+- [x] Already split into `discover → parse (stream) → transform → transport` (`discoverReportFiles` / `streamParserForFile` / `buildPayload` / `submitReport`), each independently testable and documented in `docs/architecture.md`.
+- [x] `createReporter(config)` — `{ on(event, handler), run(options) }`, wraps `publishTestReports`'s new `onEvent` hook in an `EventEmitter` (`discover`/`parse`/`upload:start`/`upload:done`/`done`). `publishTestReports` also now returns `timings: {discoverMs, parseMs, uploadMs}`.
+- [x] `TestCaseRecord` documented in `src/index.d.ts` and `docs/architecture.md`; hand-written `.d.ts` for the whole public API, type-checked in CI (`npm run types:check`).
+- [ ] Parser registry so third-party formats can self-register — not done; every format is still built-in (`src/parsers/index.js`'s dispatch tables). Fine while all formats ship in-tree; would matter if third parties want to add their own.
 
 ## E4 — Supply chain & dependencies · P0 · M
 
@@ -147,9 +147,9 @@ to `passed` / `failed` cases; give metrics a real home.
 
 - [ ] Split the README: keep quick-start; move the config table, Playwright detail and CI recipes into `docs/`.
 - [ ] Copy-paste CI recipes: GitHub Actions, GitLab, CircleCI, Jenkins, Bitbucket.
-- [ ] `docs/architecture.md` — the discover→parse→transform→transport pipeline and the upload protocol.
-- [ ] `docs/adr/` — record the SAX choice, protocol v2, the `xlsx` decision.
-- [ ] `docs/scaling.md` — the numbers, the caps, `--resume`.
+- [x] `docs/architecture.md` — the discover→parse→transform→transport pipeline.
+- [ ] `docs/adr/` — record the SAX choice, protocol v2, the `xlsx` decision. Not done; `docs/api-contract.md` and this file's own history cover the reasoning informally for now.
+- [x] `docs/scaling.md` — the numbers, the caps. (`--resume` itself is still E2, not shipped.)
 
 ---
 

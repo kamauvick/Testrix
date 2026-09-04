@@ -7,8 +7,13 @@ npm ci
 npm test            # node --test
 npm run lint        # eslint
 npm run format:check # prettier
+npm run types:check # tsc against src/index.d.ts
 npm run test:coverage
 ```
+
+If you change the shape of anything exported from `src/index.js` (new export,
+changed return shape, new option), update `src/index.d.ts` to match and rerun
+`npm run types:check`.
 
 Requires Node.js >= 18.17.
 

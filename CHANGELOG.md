@@ -82,6 +82,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cheerio` and `xlsx` are now `require`d lazily, only when an `.html` / `.xls(x)`
   report is actually parsed.
 
+### Added (programmatic API)
+
+- `createReporter(config)` (`src/reporter.js`): an `EventEmitter`-based wrapper
+  around `publishTestReports` for CI plugins / dashboards, emitting `discover`,
+  `parse`, `upload:start`, `upload:done` (or `done` on a dry run).
+- `publishTestReports` now returns `timings: { discoverMs, parseMs, uploadMs }`.
+- `src/index.d.ts`: hand-written TypeScript definitions for the whole public
+  API (`TestrixConfig`, `TestCaseRecord`, every `parseX`/`streamX` pair,
+  `createReporter`, ...), wired via `package.json#types` and checked in CI
+  (`npm run types:check`).
+- `docs/architecture.md` and `docs/scaling.md`.
+
 ### Added (upload)
 
 - `--gzip` (env `TESTRIX_GZIP`): compress the upload body, off by default until

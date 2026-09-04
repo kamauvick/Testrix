@@ -3,6 +3,7 @@
   "version": "1.2.0",
   "description": "Parse JUnit, Playwright, HTML and Excel test reports and publish them to a Testrix dashboard API.",
   "main": "src/index.js",
+  "types": "src/index.d.ts",
   "bin": {
     "testrix": "./cli.js"
   },
@@ -12,7 +13,8 @@
     "test:coverage": "c8 --reporter=text --reporter=lcov --check-coverage --lines 80 --functions 80 --branches 70 node --test",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "types:check": "tsc --noEmit --strict --skipLibCheck src/index.d.ts"
   },
   "keywords": [
     "cli",
@@ -41,7 +43,8 @@
     "@eslint/js": "^9.13.0",
     "c8": "^12.0.0",
     "eslint": "^9.13.0",
-    "prettier": "^3.3.3"
+    "prettier": "^3.3.3",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=18.17.0"

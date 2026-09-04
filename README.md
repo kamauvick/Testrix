@@ -150,12 +150,30 @@ test/                   # node:test unit tests + fixtures
 
 ### Programmatic use
 
+Ships with TypeScript types (`src/index.d.ts`, `main`/`types` wired in `package.json`).
+
 ```js
 const { loadConfig, publishTestReports } = require('testrix-cli');
 
 // configPath and overrides are both optional; env / CI / git fill the rest.
 const config = loadConfig('./config.json', { environment: 'staging' });
 const { summary, published } = await publishTestReports(config, { dryRun: false });
+```
+
+For a CI plugin or dashboard that wants progress rather than just the final
+promise, `createReporter` emits `discover` / `parse` / `upload:start` /
+`upload:done` (or `done` on a dry run):
+
+```js
+const { loadConfig, createReporter } = require('testrix-cli');
+
+const reporter = createReporter(loadConfig());
+reporter
+  .on('parse', ({ summary }) => console.log(`parsed ${summary.total} test(s)`))
+  .on('upload:done', ({ url }) => console.log(`published: ${url}`));
+
+const result = await reporter.run();
+console.log(result.timings); // { discoverMs, parseMs, uploadMs }
 ```
 
 ### Environment variables
@@ -192,6 +210,7 @@ npm test              # node --test
 npm run test:coverage # c8, with a coverage floor
 npm run lint          # eslint
 npm run format:check  # prettier
+npm run types:check   # tsc against src/index.d.ts
 ```
 
 Contributions: see [CONTRIBUTING.md](CONTRIBUTING.md). Roadmap: [TODO.md](TODO.md).

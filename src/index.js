@@ -14,12 +14,14 @@ const {
   parseReports,
   buildPayload,
 } = require('./publisher');
+const { createReporter } = require('./reporter');
 
 module.exports = {
   loadConfig,
   resolveConfig,
   DEFAULT_API_URL,
   publishTestReports,
+  createReporter,
   discoverReportFiles,
   parseReports,
   buildPayload,
