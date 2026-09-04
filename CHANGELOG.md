@@ -210,6 +210,16 @@ _Found by a multi-angle `/code-review` pass over this branch's diff._
   unrecognised status to `passed`) is gone in favour of the same
   `normaliseStatus()` every other parser uses. JMeter's `.jtl` XML/CSV sniff
   now reuses `sniff.js`'s `peek()` instead of duplicating the file-peek logic.
+- **CI:** the required `npm audit` job failed regardless of what triggered it,
+  because `npm audit` reads the full dependency tree out of
+  `package-lock.json` and ignores what `npm ci --omit=optional` actually
+  installed - `xlsx`'s known, unfixed advisories were leaking into the
+  "required" gate that was supposed to exclude them. `--omit=optional` is now
+  passed to the `npm audit` command itself, not just the preceding `npm ci`.
+- **CI:** `npm run format:check` failed on `test/fixtures/*.json` /
+  `*.html` - real captured output from Playwright/k6/Mochawesome that's
+  meant to stay byte-faithful to what those tools actually produce. Added
+  `.prettierignore` covering `test/fixtures/` (and `package-lock.json`).
 
 ## [1.2.0]
 

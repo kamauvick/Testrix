@@ -1,0 +1,6 @@
+# Test fixtures capture the exact byte output of real reporting tools
+# (Playwright, k6, Mochawesome, ...) - reformatting them would defeat the
+# point of testing against what those tools actually produce.
+test/fixtures/
+
+package-lock.json
