@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites id="" name="" tests="5" failures="1" skipped="1" errors="0" time="9.079">
+  <testsuite name="tests/login.spec.ts" timestamp="2026-09-04T10:00:00.000Z" hostname="chromium" tests="4" failures="1" skipped="1" time="7.845" errors="0">
+    <testcase name="login › succeeds" classname="tests/login.spec.ts" time="1.2">
+    </testcase>
+    <testcase name="login › shows error on bad password" classname="tests/login.spec.ts" time="0.845">
+      <failure message="[31mError:[39m expect(received).toBeVisible()" type="FAILURE">[2m    at[22m tests/login.spec.ts:14:40
+expect(locator).toBeVisible() failed</failure>
+      <system-out><![CDATA[
+trying login
+[[ATTACHMENT|test-results/login-bad-password-chromium/test-failed-1.png]]
+[[ATTACHMENT|test-results/login-bad-password-chromium/trace.zip]]
+]]></system-out>
+    </testcase>
+    <testcase name="login › remembers me" classname="tests/login.spec.ts" time="3.0">
+      <flakyFailure message="TimeoutError: locator.click: Timeout 5000ms exceeded" type="FAILURE">retry #1 failed, then passed
+    at tests/login.spec.ts:22:18</flakyFailure>
+    </testcase>
+    <testcase name="login › social login" classname="tests/login.spec.ts" time="0">
+      <skipped/>
+    </testcase>
+  </testsuite>
+  <testsuite name="tests/login.spec.ts" timestamp="2026-09-04T10:00:05.000Z" hostname="firefox" tests="1" failures="0" skipped="0" time="1.234" errors="0">
+    <testcase name="login › succeeds" classname="tests/login.spec.ts" time="1.234">
+    </testcase>
+  </testsuite>
+</testsuites>

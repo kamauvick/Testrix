@@ -1,0 +1,20 @@
+{
+  "config": {
+    "rootDir": "/repo"
+  },
+  "suites": [],
+  "errors": [
+    {
+      "message": "Error: No tests found.\nMake sure that arguments are regular expressions matching test files.",
+      "stack": "Error: No tests found\n    at loadAllTests"
+    }
+  ],
+  "stats": {
+    "startTime": "2026-09-04T10:00:00.000Z",
+    "duration": 20,
+    "expected": 0,
+    "unexpected": 0,
+    "flaky": 0,
+    "skipped": 0
+  }
+}
