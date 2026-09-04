@@ -178,6 +178,8 @@ export const parseTap: ParseFn;
 export const streamTap: StreamFn;
 export const parseJMeter: ParseFn;
 export const streamJMeter: StreamFn;
+export const parseTrx: ParseFn;
+export const streamTrx: StreamFn;
 export const parseHtml: ParseFn;
 export const parseExcel: ParseFn;
 

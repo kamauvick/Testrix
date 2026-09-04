@@ -51,11 +51,12 @@ test('parserForFile maps extensions (and extensionless files to JUnit)', () => {
 });
 
 test('parserForFile sniffs extensionless files and dedicated extensions', () => {
-  const { parseTestNG, parseNUnit, parseTap, parseJMeter } = require('../src/parsers');
+  const { parseTestNG, parseNUnit, parseTap, parseJMeter, parseTrx } = require('../src/parsers');
   assert.equal(parserForFile(fixture('testng-results.xml')), parseTestNG);
   assert.equal(parserForFile(fixture('nunit3-results.xml')), parseNUnit);
   assert.equal(parserForFile('anything.tap'), parseTap);
   assert.equal(parserForFile('anything.jtl'), parseJMeter);
+  assert.equal(parserForFile('anything.trx'), parseTrx);
 });
 
 test('stripAnsi removes colour codes; normaliseStatus maps Playwright vocab', () => {
@@ -271,4 +272,80 @@ test('buildPayload normalises test cases and names the run from suites', () => {
   assert.deepEqual(payload.testRun.suites, ['Checkout', 'Cart']);
   assert.equal(payload.testCases[0].duration, 13);
   assert.equal(payload.testCases[0].errorMessage, '');
+});
+
+test('buildPayload golden output: a small mixed-result multi-project run', () => {
+  const config = {
+    userId: 'u1',
+    projectId: 'p1',
+    environment: 'staging',
+    branch: 'main',
+    commit: 'abc123',
+    startTime: '2026-01-01T00:00:00.000Z',
+    endTime: '2026-01-01T00:00:10.000Z',
+  };
+  const testCases = [
+    {
+      title: 'logs in',
+      status: 'passed',
+      duration: 1200,
+      file: 'login.spec.ts',
+      suite: 'login.spec.ts',
+      project: 'chromium',
+    },
+    {
+      title: 'checkout fails',
+      status: 'failed',
+      duration: 845,
+      file: 'checkout.spec.ts',
+      suite: 'checkout.spec.ts',
+      project: 'firefox',
+      errorMessage: 'expected 200 got 500',
+      errorStack: 'Error: expected 200 got 500\n    at checkout.spec.ts:10:1',
+      line: 10,
+      retries: 1,
+      attachments: [{ name: 'screenshot', contentType: 'image/png', path: 'shot.png' }],
+    },
+  ];
+
+  const payload = buildPayload(config, {
+    testCases,
+    suites: ['login.spec.ts', 'checkout.spec.ts'],
+  });
+
+  assert.deepEqual(payload, {
+    testRun: {
+      name: 'login.spec.ts, checkout.spec.ts',
+      userId: 'u1',
+      projectId: 'p1',
+      environment: 'staging',
+      branch: 'main',
+      commit: 'abc123',
+      startTime: '2026-01-01T00:00:00.000Z',
+      endTime: '2026-01-01T00:00:10.000Z',
+    },
+    testCases: [
+      {
+        title: 'logs in',
+        status: 'passed',
+        duration: 1200,
+        errorMessage: '',
+        errorStack: '',
+        file: 'login.spec.ts',
+        suite: '[chromium] login.spec.ts',
+      },
+      {
+        title: 'checkout fails',
+        status: 'failed',
+        duration: 845,
+        errorMessage: 'expected 200 got 500',
+        errorStack: 'Error: expected 200 got 500\n    at checkout.spec.ts:10:1',
+        file: 'checkout.spec.ts',
+        suite: '[firefox] checkout.spec.ts',
+        line: 10,
+        retryCount: 1,
+        screenshot: 'shot.png',
+      },
+    ],
+  });
 });

@@ -14,6 +14,7 @@ const REPORT_EXTENSIONS = new Set([
   '.json',
   '.jtl',
   '.tap',
+  '.trx',
   '.html',
   '.htm',
   '.xls',
@@ -126,7 +127,7 @@ function discoverReportFiles(config) {
   }
   if (files.size === 0) {
     throw new Error(
-      'No report files (.xml, .json, .jtl, .tap, .html, .xls/.xlsx or *junit*) found in ' +
+      'No report files (.xml, .json, .jtl, .tap, .trx, .html, .xls/.xlsx or *junit*) found in ' +
         (reportsDir || explicit.join(', ')),
     );
   }

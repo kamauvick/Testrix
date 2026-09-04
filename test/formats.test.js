@@ -11,6 +11,7 @@ const { parseCtrf, NotCtrfJsonError } = require('../src/parsers/ctrf');
 const { parseK6, NotK6JsonError } = require('../src/parsers/k6');
 const { parseTap } = require('../src/parsers/tap');
 const { parseJMeter } = require('../src/parsers/jmeter');
+const { parseTrx } = require('../src/parsers/trx');
 
 const fixture = (name) => path.join(__dirname, 'fixtures', name);
 
@@ -147,4 +148,19 @@ test('parseJMeter aggregates XML .jtl samples the same way, using nested failure
   const checkout = testCases.find((tc) => tc.title === 'Checkout');
   assert.equal(checkout.status, 'failed');
   assert.match(checkout.errorMessage, /expected 200 got 500/);
+});
+
+test('parseTrx joins <Results> against <TestDefinitions> (which appears after it)', async () => {
+  const { summary, testCases } = await parseTrx(fixture('mstest-results.trx'));
+
+  assert.equal(summary.total, 3);
+  assert.equal(summary.passed, 1);
+  assert.equal(summary.failed, 1);
+  assert.equal(summary.skipped, 1);
+
+  const failed = testCases.find((tc) => tc.status === 'failed');
+  assert.equal(failed.title, 'LoginFailsWithBadPassword');
+  assert.equal(failed.file, 'NS.LoginTests'); // resolved from TestDefinitions by testId
+  assert.equal(failed.duration, 12); // 00:00:00.0120000 -> 12ms
+  assert.equal(failed.errorMessage, 'Assert.IsTrue failed.');
 });

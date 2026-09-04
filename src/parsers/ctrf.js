@@ -94,4 +94,47 @@ async function parseCtrf(filePath) {
   return { summary, testCases, startTime: acc.startTime ?? null, endTime: acc.endTime ?? null };
 }
 
-module.exports = { parseCtrf, streamCtrf, looksLikeCtrf, NotCtrfJsonError };
+const STATUS_TO_CTRF = { passed: 'passed', failed: 'failed', skipped: 'skipped', flaky: 'passed' };
+
+/**
+ * The reverse direction: build a CTRF document from Testrix's internal
+ * records, so any format Testrix can read, it can also re-emit as CTRF
+ * (`testrix --output ctrf`). CTRF has no "flaky" status of its own - a flaky
+ * record (failed then passed) is reported as `passed` with `flaky: true`,
+ * matching how CTRF reporters for other tools represent it.
+ * @param {{ testCases: object[], summary: object, startTime: ?string, endTime: ?string }} parsed
+ * @returns {object}
+ */
+function toCtrf({ testCases, summary, startTime, endTime }) {
+  const start = startTime ? Date.parse(startTime) : undefined;
+  const stop = endTime ? Date.parse(endTime) : undefined;
+  return {
+    results: {
+      tool: { name: 'testrix-cli' },
+      summary: {
+        tests: summary.total,
+        passed: summary.passed + summary.flaky,
+        failed: summary.failed,
+        pending: 0,
+        skipped: summary.skipped,
+        other: 0,
+        start: Number.isFinite(start) ? start : undefined,
+        stop: Number.isFinite(stop) ? stop : undefined,
+      },
+      tests: testCases.map((tc) => ({
+        name: tc.title,
+        status: STATUS_TO_CTRF[tc.status] || 'other',
+        duration: tc.duration,
+        suite: tc.suite || undefined,
+        filePath: tc.file || undefined,
+        line: tc.line || undefined,
+        message: tc.errorMessage || undefined,
+        trace: tc.errorStack || undefined,
+        retries: tc.retries || undefined,
+        flaky: tc.flaky || undefined,
+      })),
+    },
+  };
+}
+
+module.exports = { parseCtrf, streamCtrf, looksLikeCtrf, toCtrf, NotCtrfJsonError };

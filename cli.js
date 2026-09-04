@@ -7,8 +7,9 @@ const path = require('node:path');
 const { version } = require('./package.json');
 const log = require('./src/logger');
 const { loadConfig } = require('./src/config');
-const { publishTestReports } = require('./src/publisher');
+const { publishTestReports, discoverReportFiles, parseReports } = require('./src/publisher');
 const { detectCiMetadata } = require('./src/ci');
+const { toCtrf } = require('./src/parsers/ctrf');
 
 const HELP = `testrix v${version}
 
@@ -39,7 +40,7 @@ Options:
       --max-cases <n>    Cap on test cases read (env: TESTRIX_MAX_CASES, default 200000; 0 = all)
       --max-upload-bytes <n>  Reject the upload locally above this size (env: TESTRIX_MAX_UPLOAD_BYTES, default 20MB)
       --gzip             Compress the upload body (env: TESTRIX_GZIP; only if your server inflates it)
-      --output <fmt>     'text' (default) or 'json' (machine-readable result on stdout)
+      --output <fmt>     'text' (default), 'json' (machine-readable result), or 'ctrf' (print a CTRF conversion of the parsed reports and exit, no publish)
       --log-format <fmt> 'text' (default) or 'json' (one JSON object per log line, to stderr/stdout per --output)
       --debug-bundle <path>  Write resolved config, files, summary & timings (secrets redacted) as JSON, for bug reports
       --print-config     Print the fully-resolved config (secrets redacted) and exit
@@ -256,10 +257,11 @@ async function main(argv) {
   }
 
   const outputJson = parsed.flags.output === 'json';
-  if (parsed.flags.output && !['text', 'json'].includes(parsed.flags.output)) {
-    throw new Error("--output must be 'text' or 'json'");
+  const outputCtrf = parsed.flags.output === 'ctrf';
+  if (parsed.flags.output && !['text', 'json', 'ctrf'].includes(parsed.flags.output)) {
+    throw new Error("--output must be 'text', 'json', or 'ctrf'");
   }
-  if (outputJson) log.routeToStderr(); // keep stdout clean for the JSON result
+  if (outputJson || outputCtrf) log.routeToStderr(); // keep stdout clean for the result
 
   const logFormat = parsed.flags['log-format'] || process.env.TESTRIX_LOG_FORMAT || 'text';
   if (logFormat && !['text', 'json'].includes(logFormat)) {
@@ -277,6 +279,15 @@ async function main(argv) {
   if (parsed.flags['print-config']) {
     const redacted = { ...config, apiKey: config.apiKey ? '***' : config.apiKey };
     process.stdout.write(`${JSON.stringify(redacted, null, 2)}\n`);
+    return 0;
+  }
+
+  if (outputCtrf) {
+    const files = discoverReportFiles(config);
+    const { testCases, summary, startTime, endTime } = await parseReports(files, {
+      maxCases: config.maxCases,
+    });
+    process.stdout.write(`${JSON.stringify(toCtrf({ testCases, summary, startTime, endTime }))}\n`);
     return 0;
   }
 

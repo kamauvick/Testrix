@@ -1,13 +1,14 @@
 # Testrix CLI
 
-**Testrix CLI** is a command-line tool designed to parse test reports from the tools you actually use - JUnit XML, Playwright, TestNG, NUnit3, Cypress/Mochawesome, CTRF, TAP, k6, JMeter, HTML, Excel - and publish the results to a specified server API. This allows for centralized tracking, analytics, and dashboards for your CI/CD pipelines and local environments.
+**Testrix CLI** is a command-line tool designed to parse test reports from the tools you actually use - JUnit XML, Playwright, TestNG, NUnit3, `.trx`, Cypress/Mochawesome, CTRF, TAP, k6, JMeter, HTML, Excel - and publish the results to a specified server API. This allows for centralized tracking, analytics, and dashboards for your CI/CD pipelines and local environments.
 
 ---
 
 ## 📦 Features
 
-- ✅ **Functional test frameworks:** JUnit XML (Vitest, Pest/PHPUnit, Surefire, ...), Playwright (`junit` + `json`), TestNG, NUnit3, Cypress/Mocha (Mochawesome), CTRF, TAP (`node --test`, `tap`), plus `.html` and `.xls/.xlsx`. `.xml`/`.json` are content-sniffed, so it doesn't matter which tool produced them.
+- ✅ **Functional test frameworks:** JUnit XML (Vitest, Pest/PHPUnit, Surefire, ...), Playwright (`junit` + `json`), TestNG, NUnit3, `.trx` (`dotnet test`), Cypress/Mocha (Mochawesome), CTRF, TAP (`node --test`, `tap`), plus `.html` and `.xls/.xlsx`. `.xml`/`.json` are content-sniffed, so it doesn't matter which tool produced them.
 - 📈 **Load/perf tools:** k6 (checks + threshold SLAs) and JMeter `.jtl` (CSV or XML, streamed and aggregated by sampler label even at multi-GB size).
+- 🔁 **`--output ctrf`** converts any of the above into a [CTRF](https://ctrf.io) document on stdout, no publish required.
 - 🎭 First-class [Playwright](#playwright) support: projects (browsers), retries, flaky tests, attachments, and crash detection
 - 📁 Extracts test case results including status, duration, and error details
 - 📊 Aggregates summary statistics (total, passed, failed, skipped, flaky)
@@ -119,6 +120,7 @@ testrix ./ci/testrix.json                 # explicit config file
 testrix --reports "out/**/junit-*.xml"    # glob; repeat --reports for several
 testrix --dry-run                         # parse & summarise, don't publish
 testrix --output json                     # machine-readable result on stdout
+testrix --output ctrf                     # convert to CTRF on stdout, don't publish
 testrix --fail-on-failed                  # exit 3 if any test failed
 ```
 

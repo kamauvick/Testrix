@@ -82,6 +82,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cheerio` and `xlsx` are now `require`d lazily, only when an `.html` / `.xls(x)`
   report is actually parsed.
 
+### Added (more formats)
+
+- **`.trx`** (MSTest / `dotnet test --logger trx`): `src/parsers/trx.js`.
+  Joins `<Results>` against `<TestDefinitions>` at end-of-stream, since the
+  results section comes first in a standard `.trx` file.
+- **`--output ctrf`**: parses the discovered reports and prints a CTRF
+  document to stdout without publishing - Testrix now works as a one-shot
+  converter into the cross-runner format, from any format it can read.
+- A golden-output test locks down `buildPayload`'s exact shape for a fixed
+  multi-project, mixed-result input.
+
 ### Added (observability & docs)
 
 - `--log-format json`: one JSON object per line (`{level, msg, ts}`), scrubbed

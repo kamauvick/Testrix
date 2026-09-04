@@ -5,15 +5,19 @@ run of **any size** — from 10 tests to 1,000,000 — in bounded memory and tim
 and make it speak the formats the industry actually produces (functional **and**
 load/perf tooling).
 
-> **Progress:** **E1, E2a, E3 (bar a parser registry), E4, E5, E7, E8 (bar schema-validation errors), E10 (bar a progress line) done.** E6: coverage gate, nightly load test and fuzz-ish JUnit robustness tests done; real-tool fixtures and golden-file/snapshot tests still open. E11: architecture/scaling/CI-recipe docs done; README physical split and ADRs still open. **E9/E9b: 7 new formats shipped** (TestNG, NUnit3, Mochawesome, CTRF, TAP, k6, JMeter CSV+XML) with content-sniffed dispatch; Robot Framework, `.trx`, Gatling, Locust, `--output ctrf` and the dialect-conformance fixtures remain. E6: coverage gate + nightly load test in place; real-tool fixtures + fuzzing still open. E0 contract doc written (answers owed - blocks E2). E2/E3/E8/E10/E11 not started.
+> **Progress:** **E1, E2a, E3 (bar a parser registry), E4, E5, E7, E8 (bar schema-validation errors), E10 (bar a progress line) done.**
+> **E9/E9b: 8 new formats shipped** — TestNG, NUnit3, `.trx`, Mochawesome, CTRF (in + out, `--output ctrf`), TAP, k6, JMeter (CSV+XML) — with content-sniffed dispatch for the ambiguous extensions. Robot Framework, Gatling, Locust, and a real-tool dialect-conformance suite remain.
+> **E6:** coverage gate, nightly load test, a golden-file test for `buildPayload`, and fuzz-ish JUnit robustness (truncated file, huge attribute, DTD entities) are done; fixtures generated from real tool installs (rather than hand-written) are still open.
+> **E11:** architecture/scaling/CI-recipe docs done; a physical README split and an `adr/` folder are still open.
+> **E0** contract doc is written but its answers are still owed by the API team - **E2** (the batched/resumable protocol) is blocked on them; E2a (gzip + size cap) shipped in the meantime.
 
 ## Definition of done for "scales regardless of upload size"
 
-- [ ] Parsing and uploading are **O(batch), not O(report)** — peak RSS stays flat as the report grows.
-- [ ] A **1 GB** JUnit XML file parses without OOM (streaming, not `readFileSync` + DOM).
-- [ ] **1,000,000** test cases upload successfully, resumably, in bounded memory.
-- [ ] No single HTTP request body exceeds a few MB (gzipped batches).
-- [ ] Wall-clock budget: ≤ ~5 min for 1M cases on a standard 2-CPU CI runner.
+- [x] **Parsing** is O(batch), not O(report) — verified for JUnit and (above a size threshold) Playwright JSON. **Uploading** is not yet — `parseReports` still fills one array for a single POST, bounded only by `--max-cases`; true O(batch) upload is E2.
+- [x] A **1 GB** JUnit XML file parses without OOM (streaming, not `readFileSync` + DOM) — measured at 132 MB / 1,000,000 cases with ≈0 MB RSS growth; see `docs/scaling.md`.
+- [ ] **1,000,000** test cases upload successfully, resumably, in bounded memory — blocked on E2 (resumability needs a batched protocol; today it's one request, capped and optionally gzipped).
+- [x] No single HTTP request body exceeds a configured limit — `--max-upload-bytes` (default 20 MB) refuses an oversized body locally; `--gzip` is available once a server confirms it inflates the encoding. Not yet _automatically_ batched down to "a few MB" - that's E2.
+- [ ] Wall-clock budget: ≤ ~5 min for 1M cases on a standard 2-CPU CI runner — parsing alone measures ~4s for 1M JUnit cases; end-to-end (incl. upload) at that scale isn't measured yet since it depends on the server and whether `--max-cases`/`--gzip` are tuned for it.
 - [ ] A nightly load test in CI enforces the RSS and time budgets with synthetic 100k / 1M fixtures.
 
 ---
@@ -83,7 +87,7 @@ Everything below assumes a known server contract. The `dashboard-api` repo's
 - [ ] Replace hand-written fixtures with **real** output from Playwright, Vitest, jest-junit, Pest/PHPUnit, pytest, Cypress, TestNG, `dotnet test` (.trx), Robot Framework, k6, JMeter (see E9 / E9b).
 - [x] Fuzz-ish coverage of the JUnit stream parser: unclosed root tag (rejected cleanly, doesn't hang), a 1MB attribute value (clamped, doesn't bloat the record), entity-expansion / billion-laughs (rejected - `test/junit-stream.test.js`). Not a property-based fuzzer; a handful of targeted adversarial fixtures.
 - [x] Nightly load test: synthetic 100k / 1M generators, assert peak RSS + wall time (E1: `.github/workflows/load-test.yml`).
-- [ ] Golden-file tests for `buildPayload`; `--dry-run` snapshot per fixture.
+- [x] A golden-output test for `buildPayload` (`test/parsers.test.js`) - a fixed multi-project mixed-result input asserted against a fully hard-coded expected payload. Not per-fixture `--dry-run` snapshots for every format yet.
 
 ## E7 — Security hardening · P1 · M
 
@@ -113,13 +117,13 @@ JUnit loses information.
 - [ ] **JUnit dialect conformance:** real fixtures + tests for jest-junit, pytest (`--junitxml`), Surefire/Failsafe (Java), rspec_junit_formatter, Cypress (`mocha-junit-reporter`), WebdriverIO, Karma, Newman/Postman, `gotestsum`. The hand-rolled fixtures we have (Vitest, Pest, Playwright) all parse correctly; still need real output from the rest to catch dialect-specific quirks.
 - [x] **TestNG** `testng-results.xml` (Selenium-via-TestNG, WebdriverIO) — `src/parsers/testng.js`, streaming, excludes `is-config="true"` setup/teardown methods.
 - [x] **NUnit3** XML (`.NET` / Selenium-with-NUnit) — `src/parsers/nunit.js`, streaming, nested `<test-suite>` path.
-- [ ] **.trx** (`dotnet test`'s own MSTest schema) — not yet implemented; NUnit3 (above) covers the common .NET-via-NUnit path.
+- [x] **.trx** (`dotnet test`'s own MSTest schema) — `src/parsers/trx.js`. `<Results>` comes before `<TestDefinitions>` in a standard .trx file, so results are buffered and joined against definitions at end-of-stream rather than yielded incrementally (still no DOM; just not mid-file streaming for this one format).
 - [ ] **Robot Framework** `output.xml` — its own rich schema (keywords, suites, tags). Not yet implemented - lower priority than the others, larger schema for less common usage in this project's context.
 - [x] **Cypress / Mocha** Mochawesome JSON — `src/parsers/mochawesome.js`, nested suites, `err.estack`.
 - [ ] **pytest** `pytest-json-report` and **Go** `go test -json` (stream) — not yet implemented.
-- [x] **CTRF** JSON input — `src/parsers/ctrf.js`; also a natural `--output ctrf` converter target (not yet built).
+- [x] **CTRF** JSON input — `src/parsers/ctrf.js`.
 - [x] **TAP** stream (`node --test`, `tap`, `pytest-tap`) — `src/parsers/tap.js`, streams via `readline`; parses `ok`/`not ok`, `# SKIP`/`# TODO`, and the common `key: value` subset of the YAML diagnostic block (not a full YAML parser).
-- [ ] `--output ctrf` so Testrix can also act as a converter.
+- [x] `--output ctrf` — parses the discovered reports and prints a CTRF document to stdout without publishing (`toCtrf()` in `src/parsers/ctrf.js`), so Testrix also works as a one-shot converter.
 - [x] Format auto-detection by content sniff for ambiguous extensions (`.xml` between JUnit/TestNG/NUnit3, `.json` between Playwright/k6/CTRF/Mochawesome) — `src/parsers/sniff.js`. No `--format` override flag yet (sniffing hasn't needed one).
 
 ## E9b — Format coverage: load & performance tools · P1 · L · _model change_
@@ -155,14 +159,14 @@ to `passed` / `failed` cases; give metrics a real home.
 
 ## Sequencing
 
-| Wave                        | Epics                           | Gate                                                                                   |
-| --------------------------- | ------------------------------- | -------------------------------------------------------------------------------------- |
-| **Now** (no API dependency) | E0, E1, E4, E5, E7              | audit-clean install; streaming parser; green CI matrix                                 |
-| **Next**                    | E2 (RFC + ship E2a), E3, E6, E9 | resumable 1M-case upload; coverage floor; JUnit dialect suite + TestNG/.trx/Robot/CTRF |
-| **Then**                    | E8, E9b, E10, E11               | config from `package.json`; k6 + JMeter (streamed); docs split                         |
+| Wave                        | Epics                    | Status                                                                                                                                                                                                       |
+| --------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Now** (no API dependency) | E0, E1, E4, E5, E7       | **Done.** Audit-clean install, streaming JUnit/Playwright-JSON, green CI matrix, redaction/https/proxy/redirect guards.                                                                                      |
+| **Next**                    | E2 (blocked), E3, E6, E9 | **E3 done, E9 mostly done** (8 formats; Robot Framework + real-tool fixtures remain). **E2 blocked** on E0's answers; E2a shipped. E6 mostly done (fuzz, golden test, load test; real-tool fixtures remain). |
+| **Then**                    | E8, E9b, E10, E11        | **E8, E10 done** (bar minor items). **E9b mostly done** (k6 + JMeter shipped, streamed; Gatling/Locust remain). E11 docs done; README split/ADRs remain.                                                     |
 
-E9b (k6, JMeter, Gatling) rides on E1 — JMeter `.jtl` files are multi-GB, so
-streaming has to land first — and on the E9b model change landing in the API
-alongside E2.
+E9b's JMeter support did need E1 to land first, as expected (`.jtl` files are
+multi-GB) - it streams via the same `saxes`/line-reader approach as everything
+else. E9b's `metrics` field is additive and doesn't touch the API/dashboard.
 
 Effort key: **S** ≈ ≤1 day · **M** ≈ 2–5 days · **L** ≈ 1–2 weeks.

@@ -17,6 +17,7 @@ const { parseCtrf, streamCtrf, NotCtrfJsonError } = require('./ctrf');
 const { parseK6, streamK6, NotK6JsonError } = require('./k6');
 const { parseTap, streamTap } = require('./tap');
 const { parseJMeter, streamJMeter } = require('./jmeter');
+const { parseTrx, streamTrx } = require('./trx');
 const { sniffXmlFormat, sniffJsonFormat } = require('./sniff');
 const { emptySummary, normaliseStatus, countStatus, stripAnsi, SUMMARY_KEYS } = require('./shared');
 
@@ -54,6 +55,8 @@ function parserForFile(filePath) {
       return parseJMeter;
     case '.tap':
       return parseTap;
+    case '.trx':
+      return parseTrx;
     case '.html':
     case '.htm':
       return parseHtml;
@@ -93,6 +96,8 @@ function streamParserForFile(filePath) {
       return streamJMeter;
     case '.tap':
       return streamTap;
+    case '.trx':
+      return streamTrx;
     case '.html':
     case '.htm':
       return bufferedToStream(parseHtml);
@@ -129,6 +134,8 @@ module.exports = {
   streamTap,
   parseJMeter,
   streamJMeter,
+  parseTrx,
+  streamTrx,
   parserForFile,
   streamParserForFile,
   emptySummary,

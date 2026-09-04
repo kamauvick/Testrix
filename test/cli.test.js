@@ -163,3 +163,29 @@ test('--debug-bundle writes a redacted JSON snapshot of the run', async () => {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('--output ctrf prints a CTRF conversion and never calls the network', async () => {
+  const dir = tmpWithReport('playwright-junit.xml');
+  try {
+    const { code, stdout } = await runCli(
+      [
+        '--project',
+        'p',
+        '--api-key',
+        'k',
+        '--url',
+        'http://127.0.0.1:1/unreachable',
+        '--output',
+        'ctrf',
+      ],
+      { cwd: dir },
+    );
+    assert.equal(code, 0);
+    const doc = JSON.parse(stdout);
+    assert.equal(doc.results.tool.name, 'testrix-cli');
+    assert.equal(doc.results.summary.tests, 5);
+    assert.equal(doc.results.tests.length, 5);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
