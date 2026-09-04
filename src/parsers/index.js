@@ -5,7 +5,11 @@ const path = require('node:path');
 const { parseJUnit, streamJUnit } = require('./junit');
 const { parseHtml } = require('./html');
 const { parseExcel } = require('./excel');
-const { parsePlaywrightJson, NotPlaywrightJsonError } = require('./playwright-json');
+const {
+  parsePlaywrightJson,
+  streamPlaywrightJson,
+  NotPlaywrightJsonError,
+} = require('./playwright-json');
 const { emptySummary, normaliseStatus, countStatus, stripAnsi, SUMMARY_KEYS } = require('./shared');
 
 /**
@@ -54,7 +58,7 @@ function streamParserForFile(filePath) {
     case '':
       return streamJUnit;
     case '.json':
-      return bufferedToStream(parsePlaywrightJson);
+      return streamPlaywrightJson;
     case '.html':
     case '.htm':
       return bufferedToStream(parseHtml);
@@ -72,6 +76,7 @@ module.exports = {
   parseHtml,
   parseExcel,
   parsePlaywrightJson,
+  streamPlaywrightJson,
   NotPlaywrightJsonError,
   parserForFile,
   streamParserForFile,

@@ -1,0 +1,31 @@
+name: Load test
+
+on:
+  schedule:
+    - cron: '17 3 * * *' # nightly, off-peak
+  workflow_dispatch:
+    inputs:
+      cases:
+        description: Number of synthetic test cases
+        default: '1000000'
+      rss_budget_mb:
+        description: Peak RSS budget (MB)
+        default: '700'
+
+permissions:
+  contents: read
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: node --expose-gc scripts/load-test.js
+        env:
+          LOAD_TEST_CASES: ${{ github.event.inputs.cases || '1000000' }}
+          LOAD_TEST_RSS_BUDGET_MB: ${{ github.event.inputs.rss_budget_mb || '700' }}

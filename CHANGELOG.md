@@ -50,6 +50,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when truncated.
 - JUnit reports with colour codes / C0 control characters in attributes (default
   Playwright output) parse cleanly instead of hard-failing.
+- **Streaming Playwright JSON ingestion.** Reports over 20 MB
+  (`TESTRIX_JSON_STREAM_THRESHOLD_BYTES`) are parsed with `stream-json`, which
+  assembles the `suites` array one spec file at a time instead of loading the
+  whole document; smaller reports keep the simpler `JSON.parse` path.
+- `.github/workflows/load-test.yml` (nightly + manual): generates a 1M-case
+  JUnit report and a 200k-case Playwright JSON report, streams both through the
+  real parsers, and fails if peak RSS exceeds a budget.
 - JUnit `time` (seconds) is normalised to milliseconds so sub-second durations
   survive the integer rounding in the payload.
 - ANSI colour codes are stripped from error messages, stacks and captured output.

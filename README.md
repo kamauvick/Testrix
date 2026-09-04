@@ -88,9 +88,11 @@ themselves (JUnit `timestamp` + `time`, Playwright `stats`), falling back to
 "now"; set them in the config file to override.
 
 **Large reports.** JUnit XML is parsed as a stream — a multi-hundred-MB report
-never sits in memory as a DOM. Long error stacks and captured stdout/stderr are
-clamped (16 KB each), and the run is capped at `maxCases` test cases with a
-warning when it truncates; raise or disable it with `--max-cases`.
+never sits in memory as a DOM. Playwright JSON reports over 20 MB
+(`TESTRIX_JSON_STREAM_THRESHOLD_BYTES`) are streamed the same way, one spec
+file at a time. Long error stacks and captured stdout/stderr are clamped
+(16 KB each), and the run is capped at `maxCases` test cases with a warning
+when it truncates; raise or disable it with `--max-cases`.
 
 Precedence: **CLI flag → config file → `TESTRIX_*` env → CI env → git → built-in default.**
 

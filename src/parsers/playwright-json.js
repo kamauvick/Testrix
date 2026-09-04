@@ -2,8 +2,15 @@
 
 const fs = require('node:fs');
 
-const { emptySummary, normaliseStatus, countStatus, stripAnsi } = require('./shared');
-const { clampField } = require('../limits');
+const { normaliseStatus, countStatus, stripAnsi, emptySummary } = require('./shared');
+const { clampField, toInt } = require('../limits');
+
+// Above this size, parse via stream-json instead of JSON.parse so a huge report
+// (thousands of specs) never has to sit fully in memory as a JS object tree.
+// Read per-call (not once at module load) so it can be overridden at runtime -
+// tests rely on this to exercise the streaming path without a huge fixture.
+const streamThresholdBytes = () =>
+  toInt(process.env.TESTRIX_JSON_STREAM_THRESHOLD_BYTES, 20 * 1024 * 1024);
 
 /**
  * Error thrown when a `.json` file is valid JSON but not a Playwright report.
@@ -82,11 +89,13 @@ function summariseTest(test) {
 }
 
 /**
- * Recursively walk `suites` -> `specs` -> `tests`. Nested suites are `describe`
- * blocks; their titles build the `A > B > C` suite path. The spec file is only
- * set on the top-level suite, so it is inherited downwards.
+ * Recursively walk one `suites` array -> `specs` -> `tests`, pushing test-case
+ * records into `out`. Nested suites are `describe` blocks; their titles build
+ * the `A / B / C` suite path. The spec file is only set on the top-level suite,
+ * so it is inherited downwards. Takes a single top-level suite (or a handful)
+ * so it can run once per streamed suite as well as over a fully-parsed array.
  */
-function walkSuites(suites, parentTitles, parentFile, summary, testCases) {
+function walkSuites(suites, parentTitles, parentFile, out) {
   for (const suite of asArray(suites)) {
     const titles = suite.title ? [...parentTitles, suite.title] : parentTitles;
     const file = suite.file || parentFile || null;
@@ -100,7 +109,7 @@ function walkSuites(suites, parentTitles, parentFile, summary, testCases) {
         // `describe` blocks.
         const suitePath = titles.join(' / ') || null;
 
-        testCases.push({
+        out.push({
           title: spec.title || test.title || '',
           status: info.status,
           duration: info.duration,
@@ -116,15 +125,31 @@ function walkSuites(suites, parentTitles, parentFile, summary, testCases) {
           stdout: info.stdout,
           stderr: info.stderr,
         });
-
-        summary.total += 1;
-        countStatus(summary, info.status);
-        summary.duration += info.duration;
       }
     }
 
-    walkSuites(suite.suites, titles, file, summary, testCases);
+    walkSuites(suite.suites, titles, file, out);
   }
+}
+
+/** Build the synthetic failed record for one top-level Playwright run error. */
+function runErrorRecord(err) {
+  return {
+    title: 'Playwright run error',
+    status: 'failed',
+    duration: 0,
+    errorMessage: clampField(stripAnsi((err && err.message) || String(err) || 'Unknown run error')),
+    errorStack: clampField(stripAnsi((err && (err.stack || err.snippet)) || '')),
+    file: (err && err.location && err.location.file) || null,
+    suite: null,
+    project: null,
+    line: (err && err.location && err.location.line) || null,
+    retries: 0,
+    flaky: false,
+    attachments: [],
+    stdout: '',
+    stderr: '',
+  };
 }
 
 /** Run window from Playwright's `stats.startTime` (ISO) + `stats.duration` (ms). */
@@ -139,12 +164,8 @@ function runWindow(stats) {
   };
 }
 
-/**
- * Parse a Playwright JSON report (`reporter: 'json'` / `PLAYWRIGHT_JSON_OUTPUT_NAME`).
- * @param {string} filePath
- * @returns {Promise<{ summary: object, testCases: object[], startTime: ?string, endTime: ?string }>}
- */
-async function parsePlaywrightJson(filePath) {
+/** Parse the whole file with JSON.parse - the common case, well under the streaming threshold. */
+async function* streamSmall(filePath, acc) {
   let parsed;
   try {
     parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -160,36 +181,115 @@ async function parsePlaywrightJson(filePath) {
     );
   }
 
-  const summary = emptySummary();
-  const testCases = [];
-  walkSuites(parsed.suites, [], null, summary, testCases);
+  const out = [];
+  walkSuites(parsed.suites, [], null, out);
+  yield* out;
 
   // Top-level `errors` are run-level failures (config load, global setup, worker
   // crash) that never made it into a spec. Surface each so the run isn't green.
-  for (const err of asArray(parsed.errors)) {
-    testCases.push({
-      title: 'Playwright run error',
-      status: 'failed',
-      duration: 0,
-      errorMessage: clampField(
-        stripAnsi((err && err.message) || String(err) || 'Unknown run error'),
-      ),
-      errorStack: clampField(stripAnsi((err && (err.stack || err.snippet)) || '')),
-      file: (err && err.location && err.location.file) || null,
-      suite: null,
-      project: null,
-      line: (err && err.location && err.location.line) || null,
-      retries: 0,
-      flaky: false,
-      attachments: [],
-      stdout: '',
-      stderr: '',
-    });
-    summary.total += 1;
-    countStatus(summary, 'failed');
-  }
+  for (const err of asArray(parsed.errors)) yield runErrorRecord(err);
 
-  return { summary, testCases, ...runWindow(parsed.stats) };
+  Object.assign(acc, runWindow(parsed.stats));
 }
 
-module.exports = { parsePlaywrightJson, NotPlaywrightJsonError };
+/** Peek at the start of a large file to sanity-check it's a Playwright report without buffering it. */
+function looksLikePlaywrightHeuristic(filePath) {
+  const fd = fs.openSync(filePath, 'r');
+  try {
+    const buf = Buffer.alloc(8192);
+    const n = fs.readSync(fd, buf, 0, buf.length, 0);
+    const head = buf.toString('utf8', 0, n);
+    return /"suites"\s*:/.test(head) && /"(config|stats|errors)"\s*:/.test(head);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+/**
+ * Stream a large Playwright JSON report with `stream-json`: the `suites` array
+ * is assembled one top-level entry (one spec file) at a time rather than
+ * loading the whole document, so peak memory tracks the largest single spec
+ * file instead of the whole run. `errors` / `stats` are tiny and read fully.
+ */
+async function* streamLarge(filePath, acc) {
+  if (!looksLikePlaywrightHeuristic(filePath)) {
+    throw new NotPlaywrightJsonError(
+      'JSON file does not look like a Playwright report (no `suites`/`config`/`stats` near the start)',
+    );
+  }
+
+  const { parser } = require('stream-json');
+  const { pick } = require('stream-json/filters/Pick');
+  const { streamArray } = require('stream-json/streamers/StreamArray');
+  const { streamValues } = require('stream-json/streamers/StreamValues');
+
+  const tokens = fs.createReadStream(filePath).pipe(parser());
+  let streamErr = null;
+  tokens.on('error', (e) => {
+    streamErr = streamErr || e;
+  });
+
+  const errors = [];
+  tokens
+    .pipe(pick({ filter: 'errors' }))
+    .pipe(streamArray())
+    .on('data', ({ value }) => errors.push(value))
+    .on('error', (e) => {
+      streamErr = streamErr || e;
+    });
+
+  let stats = {};
+  tokens
+    .pipe(pick({ filter: 'stats' }))
+    .pipe(streamValues())
+    .on('data', ({ value }) => {
+      stats = value;
+    })
+    .on('error', (e) => {
+      streamErr = streamErr || e;
+    });
+
+  const suites = tokens.pipe(pick({ filter: 'suites' })).pipe(streamArray());
+  for await (const { value: suite } of suites) {
+    if (streamErr) throw streamErr;
+    const out = [];
+    walkSuites([suite], [], null, out);
+    yield* out;
+  }
+  if (streamErr) throw streamErr;
+
+  for (const err of asArray(errors)) yield runErrorRecord(err);
+  Object.assign(acc, runWindow(stats));
+}
+
+/**
+ * Stream test-case records from a Playwright JSON report
+ * (`reporter: 'json'` / `PLAYWRIGHT_JSON_OUTPUT_NAME`).
+ * @param {string} filePath
+ * @param {{ startTime?: ?string, endTime?: ?string }} [acc] filled with the run window
+ * @returns {AsyncGenerator<object>}
+ */
+function streamPlaywrightJson(filePath, acc = {}) {
+  const { size } = fs.statSync(filePath);
+  return size > streamThresholdBytes() ? streamLarge(filePath, acc) : streamSmall(filePath, acc);
+}
+
+/**
+ * Buffered convenience wrapper - drains {@link streamPlaywrightJson} into an array.
+ * @param {string} filePath
+ * @returns {Promise<{ summary: object, testCases: object[], startTime: ?string, endTime: ?string }>}
+ */
+async function parsePlaywrightJson(filePath) {
+  const acc = {};
+  const summary = emptySummary();
+  const testCases = [];
+  for await (const rec of streamPlaywrightJson(filePath, acc)) {
+    testCases.push(rec);
+    summary.total += 1;
+    countStatus(summary, rec.status);
+    summary.duration += rec.duration || 0;
+  }
+  return { summary, testCases, startTime: acc.startTime ?? null, endTime: acc.endTime ?? null };
+}
+
+module.exports = { parsePlaywrightJson, streamPlaywrightJson, NotPlaywrightJsonError };

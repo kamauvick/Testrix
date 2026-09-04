@@ -5,7 +5,7 @@ run of **any size** — from 10 tests to 1,000,000 — in bounded memory and tim
 and make it speak the formats the industry actually produces (functional **and**
 load/perf tooling).
 
-> **Progress:** **E4, E5, E7 done** (see notes below for the couple of items intentionally deferred). E6: coverage gate in place, real-tool fixtures + fuzzing + nightly load test still open. E1 done except Playwright-JSON streaming and a CI nightly RSS job. E0 contract doc written (answers owed - blocks E2). E2/E3/E8/E9/E9b/E10/E11 not started.
+> **Progress:** **E1, E4, E5, E7 done** (see notes below for the handful of items intentionally deferred). E6: coverage gate + nightly load test in place; real-tool fixtures + fuzzing still open. E0 contract doc written (answers owed - blocks E2). E2/E3/E8/E9/E9b/E10/E11 not started.
 
 ## Definition of done for "scales regardless of upload size"
 
@@ -37,9 +37,9 @@ Everything below assumes a known server contract. The `dashboard-api` repo's
 - [x] Streaming contract: `streamJUnit(file, acc)` async generator yields one record at a time; `parseReports` consumes the stream. Buffered formats adapted via `bufferedToStream`. `parseJUnit` kept as a drain-to-array convenience wrapper.
 - [x] Per-field cap: `errorMessage` / `errorStack` / `stdout` / `stderr` clamped to 16 KB (`TESTRIX_MAX_FIELD_BYTES`) with a `…[truncated]` marker.
 - [x] `--max-cases` ceiling (default 200k, `0` = unlimited): warn + stop reading. `test/junit-stream.test.js` covers it. Verified: 132 MB / 1M-case report parses in constant memory (Δ≈0 MB).
-- [ ] **Playwright JSON streaming** — still buffered (`JSON.parse`). Add `stream-json` for files over a threshold; walk `suites[].specs[].tests[]` keeping one spec-file subtree at a time.
+- [x] **Playwright JSON streaming** — above 20 MB (`TESTRIX_JSON_STREAM_THRESHOLD_BYTES`), `stream-json` assembles the `suites` array one spec-file at a time instead of `JSON.parse`-ing the whole document; `errors`/`stats` (always tiny) are read in full off the same token stream. Below the threshold it's still plain `JSON.parse` - simpler and just as correct for the common case.
 - [ ] Excel/HTML: document the "loads whole file" ceiling in `docs/scaling.md`.
-- [ ] CI: a nightly job that parses a generated 1M-case fixture and asserts a peak-RSS budget.
+- [x] CI: `.github/workflows/load-test.yml` (nightly + manual) runs `scripts/load-test.js` - generates a 1M-case JUnit file and a 200k-case Playwright JSON file, streams both, and fails the job if peak RSS exceeds a budget (default 700 MB).
 
 ## E2 — Chunked, resumable upload protocol v2 · P0 · L · _needs API_
 
@@ -82,7 +82,7 @@ Everything below assumes a known server contract. The `dashboard-api` repo's
 - [x] Coverage via `c8` with an enforced floor (`test:coverage`: lines 80 / functions 80 / branches 70; currently ~87 / ~91 / ~74).
 - [ ] Replace hand-written fixtures with **real** output from Playwright, Vitest, jest-junit, Pest/PHPUnit, pytest, Cypress, TestNG, `dotnet test` (.trx), Robot Framework, k6, JMeter (see E9 / E9b).
 - [ ] Fuzz the JUnit stream parser: unclosed tags, huge attributes, entity-expansion / billion-laughs (confirm `saxes` limits hold).
-- [ ] Nightly load test: synthetic 100k / 1M generators, assert peak RSS + wall time.
+- [x] Nightly load test: synthetic 100k / 1M generators, assert peak RSS + wall time (E1: `.github/workflows/load-test.yml`).
 - [ ] Golden-file tests for `buildPayload`; `--dry-run` snapshot per fixture.
 
 ## E7 — Security hardening · P1 · M
