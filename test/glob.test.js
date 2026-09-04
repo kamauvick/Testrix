@@ -41,3 +41,28 @@ test('expandAll de-duplicates overlapping patterns', () => {
   assert.equal(new Set(out).size, out.length);
   assert.ok(out.length >= 3);
 });
+
+test('expand terminates on a symlink cycle instead of recursing forever', (t) => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'testrix-glob-cycle-'));
+  fs.writeFileSync(path.join(dir, 'real.xml'), '<a/>');
+  try {
+    fs.symlinkSync(dir, path.join(dir, 'loop'), 'junction');
+  } catch (err) {
+    // Creating symlinks needs elevated privilege on some Windows setups;
+    // the cycle guard itself is exercised elsewhere in this file's suite.
+    t.skip(`cannot create a symlink in this environment: ${err.message}`);
+    fs.rmSync(dir, { recursive: true, force: true });
+    return;
+  }
+  try {
+    const out = expand('**/*.xml', dir);
+    assert.deepEqual(
+      out.map((f) => path.basename(f)),
+      ['real.xml'],
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

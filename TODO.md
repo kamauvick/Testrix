@@ -5,7 +5,7 @@ run of **any size** — from 10 tests to 1,000,000 — in bounded memory and tim
 and make it speak the formats the industry actually produces (functional **and**
 load/perf tooling).
 
-> **Progress:** E5 done · E6 coverage gate in place · E4 `xml2js`→`saxes` done, lazy-loading + audit/provenance done (`xlsx` swap pending) · E7 secret redaction + https + XXE guard done · E0 contract doc written (answers owed). **E1 done** except Playwright-JSON streaming and the load-fixture RSS test in CI. E2 next.
+> **Progress:** **E4, E5, E7 done** (see notes below for the couple of items intentionally deferred). E6: coverage gate in place, real-tool fixtures + fuzzing + nightly load test still open. E1 done except Playwright-JSON streaming and a CI nightly RSS job. E0 contract doc written (answers owed - blocks E2). E2/E3/E8/E9/E9b/E10/E11 not started.
 
 ## Definition of done for "scales regardless of upload size"
 
@@ -62,20 +62,20 @@ Everything below assumes a known server contract. The `dashboard-api` repo's
 
 - [x] Drop `xml2js` (maintenance-only, prior prototype-pollution CVE) — replaced by `saxes` (E1).
 - [ ] `xlsx@0.18.5` is the last npm-registry SheetJS release and carries unpatched advisories (`npm audit` flags it forever). Move Excel to `exceljs` (streaming, maintained) **and/or** `optionalDependencies`.
-- [x] Lazy-`require` `cheerio` and `xlsx` — loaded only when an `.html` / `.xls(x)` file is parsed.
+- [x] Lazy-`require` `cheerio` and `xlsx` — loaded only when an `.html` / `.xls(x)` file is parsed; `xlsx` moved to `optionalDependencies` with a clear install-hint error when it's missing.
 - [x] `package-lock.json` committed; `npm ci` in CI.
 - [x] `npm publish --provenance` (release workflow).
-- [x] `npm audit --audit-level=high` job in CI _(non-blocking until `xlsx` is dealt with)_.
-- [ ] `engine-strict`; pin GitHub Action SHAs (currently major tags).
+- [x] `npm audit --audit-level=high` is a **real, required gate** now (`npm ci --omit=optional`, so `xlsx`'s unfixed advisories don't block it); `xlsx` itself is audited separately as a non-blocking warning.
+- [x] `engine-strict=true` in `.npmrc`; GitHub Action refs pinned to commit SHAs (checkout, setup-node, action-gh-release).
 
 ## E5 — CI / release engineering · P0 · M
 
 - [x] `.github/workflows/ci.yml`: lint + format check + `npm test` + coverage + `npm audit`, matrix Node 18.17/20/22 on Linux **and Windows**.
 - [x] `release.yml`: on tag → `npm publish --provenance` + GitHub release, with a tag/version guard.
 - [x] `CHANGELOG.md` (Keep a Changelog); `1.2.0 → Unreleased` delta captured.
-- [x] `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`, issue/PR templates.
+- [x] `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`, `CODE_OF_CONDUCT.md`, issue/PR templates.
 - [x] Dependabot config (npm + github-actions).
-- [ ] `CODE_OF_CONDUCT.md`; Conventional Commits + commitlint (optional).
+- [ ] Conventional Commits + commitlint (optional).
 
 ## E6 — Testing & quality gates · P1 · M
 
@@ -89,10 +89,11 @@ Everything below assumes a known server contract. The `dashboard-api` repo's
 
 - [x] `apiKey` scrubbed from every log line (`logger.addSecret`); `redactUrl` strips URL credentials before logging. Regression test in `test/redact.test.js`.
 - [x] `serverApiUrl` must be `https` unless localhost or `--allow-insecure-url` / `TESTRIX_ALLOW_INSECURE_URL`. Test in `test/config.test.js`.
-- [ ] Don't silently follow cross-origin redirects on the upload — log them.
-- [ ] Glob walker: guard against symlink cycles; with `--root` set, refuse report paths that resolve outside it.
+- [x] Upload redirects are followed manually: same-origin 307/308 (preserves the POST body) is followed; a cross-origin redirect or a 301/302/303 (which would leak the key or drop the body) is refused with a clear error.
+- [x] Glob walker: guards against symlink cycles (realpath-tracked); now also correctly walks symlinked files/dirs it previously silently skipped.
+- [ ] With `--root` set, refuse report paths that resolve outside it (glob walker doesn't yet take a root boundary).
 - [x] XML: `saxes` does not resolve external entities; JUnit reports declaring DTD entities are rejected outright. Billion-laughs test in `test/junit-stream.test.js`.
-- [ ] Proxy support via `undici` `ProxyAgent` honoring `HTTPS_PROXY` / `NO_PROXY`.
+- [x] Proxy support via `undici` `ProxyAgent`, honouring `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`.
 
 ## E8 — Config & DX · P2 · M
 

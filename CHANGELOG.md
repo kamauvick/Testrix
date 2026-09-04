@@ -64,6 +64,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--allow-insecure-url` / `TESTRIX_ALLOW_INSECURE_URL` is set.
 - The JUnit parser rejects reports that declare DTD entity definitions
   (XML entity-expansion / billion-laughs guard).
+- The upload no longer follows redirects blindly: a same-origin 307/308 is
+  followed (preserving the POST body), a cross-origin redirect or a
+  301/302/303 (which would leak the API key or silently drop the body) is
+  refused with an explanation.
+- `xlsx` moved to `optionalDependencies` (unpatched advisories, no upstream
+  fix) so a default install is `npm audit --audit-level=high` clean; it loads
+  lazily with an install hint if an `.xls`/`.xlsx` report is actually parsed.
+- `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` are honoured via `undici`'s
+  `ProxyAgent`, for uploads made from behind a corporate proxy.
+- The report-file glob walker resolves symlinks and tracks visited real paths,
+  so a symlink loop terminates instead of recursing forever.
+- GitHub Action references are pinned to commit SHAs, not mutable tags.
 
 ## [1.2.0]
 

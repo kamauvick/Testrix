@@ -57,22 +57,52 @@ function staticBase(absGlob) {
   return base.join('/') || '/';
 }
 
-/** Recursively list every file under `dir` (absolute paths); skips node_modules/.git. */
-function walk(dir) {
+/**
+ * Recursively list every file under `dir` (absolute paths); skips
+ * node_modules/.git. `seen` tracks the real path of every directory already
+ * walked so a symlink loop (a classic zip-bomb-style trick) terminates instead
+ * of recursing forever.
+ */
+function walk(dir, seen = new Set()) {
+  let realDir;
+  try {
+    realDir = fs.realpathSync(dir);
+  } catch {
+    return []; // missing / unreadable / broken link
+  }
+  if (seen.has(realDir)) return [];
+  seen.add(realDir);
+
   let entries;
   try {
     entries = fs.readdirSync(dir, { withFileTypes: true });
   } catch {
     return [];
   }
+
   const out = [];
   for (const entry of entries) {
+    if (entry.name === 'node_modules' || entry.name === '.git') continue;
     const full = path.join(dir, entry.name);
+
     if (entry.isDirectory()) {
-      if (entry.name === 'node_modules' || entry.name === '.git') continue;
-      out.push(...walk(full));
-    } else if (entry.isFile()) {
+      out.push(...walk(full, seen));
+      continue;
+    }
+    if (entry.isFile()) {
       out.push(full);
+      continue;
+    }
+    if (entry.isSymbolicLink()) {
+      // Dirent type reflects the link itself, not its target - resolve it.
+      let stat;
+      try {
+        stat = fs.statSync(full);
+      } catch {
+        continue; // broken link
+      }
+      if (stat.isDirectory()) out.push(...walk(full, seen));
+      else if (stat.isFile()) out.push(full);
     }
   }
   return out;

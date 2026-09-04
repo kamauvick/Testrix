@@ -170,6 +170,13 @@ config-file equivalent:
   stripped before logging.
 - `serverApiUrl` must be `https` unless it targets localhost or you pass
   `--allow-insecure-url` / set `TESTRIX_ALLOW_INSECURE_URL`.
+- A same-origin redirect (307/308) is followed; a cross-origin redirect, or one
+  that would drop the request body (301/302/303), is refused rather than
+  silently followed.
+- Uploads honour `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`.
+- `.xls`/`.xlsx` support needs the optional `xlsx` package
+  (`npm install xlsx`) - kept optional because it carries advisories with no
+  upstream fix; the rest of Testrix installs `npm audit`-clean.
 - Report vulnerabilities per [SECURITY.md](SECURITY.md).
 
 ### Development

@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 
-const { submitReport, deriveRunUrl, backoffMs } = require('../src/http');
+const { submitReport, deriveRunUrl, backoffMs, proxyDispatcher } = require('../src/http');
 
 /** Start a throwaway HTTP server whose handler is `onRequest`. */
 function serve(onRequest) {
@@ -105,5 +105,82 @@ test('submitReport gives up on a 4xx without retrying', async () => {
     assert.equal(hits, 1);
   } finally {
     server.close();
+  }
+});
+
+test('submitReport follows a same-origin 307 redirect, preserving the POST body', async () => {
+  let sawFinalBody = null;
+  const { server, url } = await serve((req, res, body) => {
+    if (req.url === '/old') {
+      res.writeHead(307, { Location: '/new' });
+      res.end();
+      return;
+    }
+    sawFinalBody = JSON.parse(body);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ testRunId: 'r1' }));
+  });
+  try {
+    const oldUrl = url.replace(/\/[^/]*$/, '/old');
+    const out = await submitReport({ serverApiUrl: oldUrl, apiKey: 'k' }, { testCases: [1] });
+    assert.equal(out.testRunId, 'r1');
+    assert.deepEqual(sawFinalBody, { testCases: [1] });
+  } finally {
+    server.close();
+  }
+});
+
+test('submitReport refuses a cross-origin redirect rather than following it', async () => {
+  const { server, url } = await serve((req, res) => {
+    res.writeHead(307, { Location: 'https://attacker.example.com/steal' });
+    res.end();
+  });
+  try {
+    await assert.rejects(
+      () => submitReport({ serverApiUrl: url, apiKey: 'super-secret-key' }, { testCases: [] }),
+      /cross-origin/,
+    );
+  } finally {
+    server.close();
+  }
+});
+
+test('submitReport refuses a 302 redirect (would silently drop the body)', async () => {
+  const { server, url } = await serve((req, res) => {
+    res.writeHead(302, { Location: '/elsewhere' });
+    res.end();
+  });
+  try {
+    await assert.rejects(
+      () => submitReport({ serverApiUrl: url, apiKey: 'k' }, { testCases: [] }),
+      /drop the request body/,
+    );
+  } finally {
+    server.close();
+  }
+});
+
+test('proxyDispatcher: picks HTTPS_PROXY, honours NO_PROXY, off by default', () => {
+  const saved = {
+    HTTPS_PROXY: process.env.HTTPS_PROXY,
+    NO_PROXY: process.env.NO_PROXY,
+  };
+  try {
+    delete process.env.HTTPS_PROXY;
+    delete process.env.NO_PROXY;
+    assert.equal(proxyDispatcher(new URL('https://api.example.com')), undefined);
+
+    process.env.HTTPS_PROXY = 'http://proxy.local:8080';
+    assert.ok(proxyDispatcher(new URL('https://api.example.com')));
+
+    process.env.NO_PROXY = 'example.com';
+    assert.equal(proxyDispatcher(new URL('https://api.example.com')), undefined);
+    assert.equal(proxyDispatcher(new URL('https://sub.example.com')), undefined);
+    assert.ok(proxyDispatcher(new URL('https://other.test')));
+  } finally {
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
   }
 });

@@ -39,7 +39,17 @@ const firstDefined = (row, keys) => {
  * @returns {Promise<{ summary: ReturnType<typeof emptySummary>, testCases: object[] }>}
  */
 async function parseExcel(filePath) {
-  const XLSX = require('xlsx');
+  let XLSX;
+  try {
+    // `xlsx` is an optional dependency (see package.json) so installs that
+    // never touch Excel reports stay free of its unpatched advisories.
+    XLSX = require('xlsx');
+  } catch {
+    throw new Error(
+      "Parsing .xls/.xlsx reports needs the optional 'xlsx' package. Install it with " +
+        '`npm install xlsx` (or `npm install --include=optional`) and try again.',
+    );
+  }
   const workbook = XLSX.readFile(filePath);
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet);

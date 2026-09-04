@@ -23,8 +23,8 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         node: ['18.17', '20', '22']
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ matrix.node }}
           cache: npm
@@ -37,8 +37,8 @@ jobs:
     name: coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           cache: npm
@@ -49,11 +49,15 @@ jobs:
     name: npm audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           cache: npm
-      - run: npm ci
-      # TODO(E4): drop `|| true` once `xlsx` is replaced / made optional.
-      - run: npm audit --audit-level=high || true
+      # `xlsx` (optional; needed only for .xls/.xlsx reports) carries advisories
+      # with no upstream fix - exclude it from the required gate and audit it
+      # separately, informationally.
+      - run: npm ci --omit=optional
+      - run: npm audit --audit-level=high
+      - run: npm install --no-save xlsx
+      - run: npm audit --audit-level=high || echo "::warning::xlsx has known, unfixed advisories - see TODO.md E4"

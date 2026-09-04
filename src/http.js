@@ -1,16 +1,43 @@
 'use strict';
 
 const { randomUUID } = require('node:crypto');
+const { fetch: undiciFetch, ProxyAgent } = require('undici');
 
 const log = require('./logger');
+const { redactUrl } = require('./redact');
 const { version } = require('../package.json');
 
 const USER_AGENT = `testrix-cli/${version} node/${process.versions.node.replace(/^v/, '')} ${process.platform}`;
 
 // Transient HTTP statuses worth retrying.
 const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+const REDIRECT_STATUS = new Set([301, 302, 303, 307, 308]);
+const MAX_REDIRECTS = 5;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * A `dispatcher` for `fetch()` that routes through `HTTPS_PROXY`/`HTTP_PROXY`
+ * when set and the target host isn't listed in `NO_PROXY`. `undici` is used
+ * explicitly (rather than relying on the global dispatcher) so proxy behaviour
+ * doesn't depend on Node's internal undici version.
+ */
+function proxyDispatcher(targetUrl) {
+  const env = process.env;
+  const noProxy = (env.NO_PROXY || env.no_proxy || '')
+    .split(',')
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean);
+  const host = targetUrl.hostname.toLowerCase();
+  if (noProxy.some((n) => host === n || host.endsWith(`.${n}`))) return undefined;
+
+  const proxyUrl =
+    targetUrl.protocol === 'https:'
+      ? env.HTTPS_PROXY || env.https_proxy
+      : env.HTTP_PROXY || env.http_proxy;
+  if (!proxyUrl) return undefined;
+  return new ProxyAgent(proxyUrl);
+}
 
 /** Exponential backoff with jitter, capped; honours a numeric `Retry-After`. */
 function backoffMs(attempt, retryAfter, overrideMs) {
@@ -34,9 +61,48 @@ const isNetworkError = (err) =>
     /fetch failed|network|socket hang up/i.test(err.message || ''));
 
 /**
+ * POST once, following same-origin redirects ourselves (rather than letting
+ * fetch do it silently) so a redirect to another host - which would otherwise
+ * carry the API key along with it - is refused instead of followed.
+ */
+async function postFollowingSameOriginRedirects(startUrl, init) {
+  let url = startUrl;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+    const target = new URL(url);
+    const response = await undiciFetch(url, {
+      ...init,
+      redirect: 'manual',
+      dispatcher: proxyDispatcher(target),
+    });
+    if (!REDIRECT_STATUS.has(response.status)) return response;
+
+    const location = response.headers.get('location');
+    if (!location) return response; // malformed redirect - let the caller treat the status as an error
+    const next = new URL(location, url);
+    if (next.origin !== target.origin) {
+      throw new Error(
+        `Refusing to follow a cross-origin redirect from ${redactUrl(url)} to ` +
+          `${redactUrl(next.toString())} (would send the API key to another host). ` +
+          'Point serverApiUrl at the final destination if this is expected.',
+      );
+    }
+    if (response.status !== 307 && response.status !== 308) {
+      throw new Error(
+        `${redactUrl(url)} redirected (HTTP ${response.status}) to ${redactUrl(next.toString())}, ` +
+          'which would drop the request body. Point serverApiUrl at the final destination instead.',
+      );
+    }
+    log.info(`Following redirect (HTTP ${response.status}) to ${redactUrl(next.toString())}`);
+    url = next.toString();
+  }
+  throw new Error(`Too many redirects (> ${MAX_REDIRECTS}) from ${redactUrl(startUrl)}`);
+}
+
+/**
  * POST `payload` to the dashboard API with a timeout, a bounded retry loop for
  * transient failures, a `User-Agent`, and an `Idempotency-Key` so a retried
- * request never creates a duplicate run.
+ * request never creates a duplicate run. Routes through `HTTPS_PROXY` /
+ * `HTTP_PROXY` when set, and refuses to silently follow a cross-origin redirect.
  * @returns {Promise<{ testRunId?: string, raw: any }>}
  */
 async function submitReport(config, payload, options = {}) {
@@ -57,7 +123,7 @@ async function submitReport(config, payload, options = {}) {
   let lastError;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      const response = await fetch(config.serverApiUrl, {
+      const response = await postFollowingSameOriginRedirects(config.serverApiUrl, {
         method: 'POST',
         headers,
         body,
@@ -112,4 +178,4 @@ function deriveRunUrl(serverApiUrl, testRunId, dashboardUrl) {
   }
 }
 
-module.exports = { submitReport, deriveRunUrl, backoffMs, USER_AGENT };
+module.exports = { submitReport, deriveRunUrl, backoffMs, proxyDispatcher, USER_AGENT };
