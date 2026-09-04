@@ -1,0 +1,21 @@
+name: Feature request
+description: A new report format, flag, or capability
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do that Testrix can't do today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should it do? For a new format, link the tool and attach a sample report.
+  - type: input
+    id: roadmap
+    attributes:
+      label: Related roadmap epic
+      description: If this maps to an item in TODO.md, name it (e.g. "E9b — load tools").

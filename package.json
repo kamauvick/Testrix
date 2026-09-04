@@ -1,7 +1,7 @@
 {
   "name": "testrix-cli",
   "version": "1.2.0",
-  "description": "Parse JUnit, HTML and Excel test reports and publish them to a Testrix dashboard API.",
+  "description": "Parse JUnit, Playwright, HTML and Excel test reports and publish them to a Testrix dashboard API.",
   "main": "src/index.js",
   "bin": {
     "testrix": "./cli.js"
@@ -9,14 +9,17 @@
   "scripts": {
     "start": "node cli.js",
     "test": "node --test",
+    "test:coverage": "c8 --reporter=text --reporter=lcov --check-coverage --lines 80 --functions 80 --branches 70 node --test",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "keywords": [
     "cli",
     "test",
     "report",
     "junit",
+    "playwright",
     "vitest",
     "pest",
     "automation",
@@ -27,11 +30,12 @@
   "type": "commonjs",
   "dependencies": {
     "cheerio": "^1.1.0",
-    "xlsx": "^0.18.5",
-    "xml2js": "^0.6.2"
+    "saxes": "^6.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
+    "c8": "^12.0.0",
     "eslint": "^9.13.0",
     "prettier": "^3.3.3"
   },
