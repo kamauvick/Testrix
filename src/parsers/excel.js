@@ -1,8 +1,28 @@
 'use strict';
 
-const XLSX = require('xlsx');
+// `xlsx` is heavy and only needed for `.xls`/`.xlsx` reports - load it lazily so
+// the common JUnit / Playwright path never pays for it.
+const { emptySummary, normaliseStatus, countStatus, stripAnsi } = require('./shared');
+const { clampField } = require('../limits');
 
-const { emptySummary, normaliseStatus, countStatus } = require('./shared');
+/** A test case object with every field defaulted. */
+const makeCase = (partial) => ({
+  title: '',
+  status: 'passed',
+  duration: 0,
+  errorMessage: '',
+  errorStack: '',
+  file: null,
+  suite: null,
+  project: null,
+  line: null,
+  retries: 0,
+  flaky: false,
+  attachments: [],
+  stdout: '',
+  stderr: '',
+  ...partial,
+});
 
 const firstDefined = (row, keys) => {
   for (const key of keys) {
@@ -19,6 +39,7 @@ const firstDefined = (row, keys) => {
  * @returns {Promise<{ summary: ReturnType<typeof emptySummary>, testCases: object[] }>}
  */
 async function parseExcel(filePath) {
+  const XLSX = require('xlsx');
   const workbook = XLSX.readFile(filePath);
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet);
@@ -32,15 +53,14 @@ async function parseExcel(filePath) {
     countStatus(summary, status);
     summary.duration += duration;
 
-    return {
+    return makeCase({
       title: firstDefined(row, ['Test Name', 'Name', 'Test', 'Title']) || '',
       status,
       duration,
-      errorMessage: firstDefined(row, ['Error', 'Message', 'Failure']) || '',
-      errorStack: '',
+      errorMessage: clampField(stripAnsi(firstDefined(row, ['Error', 'Message', 'Failure']) || '')),
       file: firstDefined(row, ['File', 'Suite', 'Class']) || null,
       suite: firstDefined(row, ['Suite', 'Module', 'Group']) || null,
-    };
+    });
   });
 
   return { summary, testCases };
