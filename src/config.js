@@ -6,6 +6,8 @@ const path = require('node:path');
 
 const { detectCiMetadata, detectGitMetadata } = require('./ci');
 const { DEFAULT_MAX_CASES, toInt } = require('./limits');
+const { findConfigFile } = require('./config-discovery');
+const log = require('./logger');
 
 const DEFAULT_API_URL = 'https://testing-dashboard-api.myworkpay.com/api/submit-test-reports';
 
@@ -134,23 +136,39 @@ const withoutUndefined = (obj) =>
   Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
 
 /**
- * Load and validate configuration. Both arguments are optional - when the file
- * is absent, configuration is resolved entirely from CLI overrides, environment,
- * CI, and defaults.
+ * Load and validate configuration. Both arguments are optional.
+ *
+ * With an explicit `configPath`, it must exist (except the literal default
+ * `"config.json"`, which is fine to be absent). With none, Testrix looks for
+ * `testrix.config.{json,cjs,js}` / `.testrixrc(.json)` / a `testrix` key in
+ * `package.json`, walking up from cwd (see `config-discovery.js`), then falls
+ * back to a `config.json` in cwd, then to CLI overrides / env / CI / git alone.
  * @param {string} [configPath]
  * @param {Partial<TestrixConfig>} [overrides]  Highest-precedence values (CLI flags).
  * @returns {TestrixConfig}
  */
 function loadConfig(configPath, overrides = {}) {
   let fileConfig = {};
-  if (configPath && fs.existsSync(path.resolve(configPath))) {
-    fileConfig = readConfigFile(configPath);
-  } else if (configPath && path.basename(configPath) !== 'config.json') {
-    // An explicit non-default path that doesn't exist is a mistake worth
-    // reporting; the default "config.json" simply being absent is fine.
-    throw new Error(`Config file not found: ${path.resolve(configPath)}`);
+  if (configPath) {
+    if (fs.existsSync(path.resolve(configPath))) {
+      fileConfig = readConfigFile(configPath);
+      log.debug(`Config loaded from ${path.resolve(configPath)}`);
+    } else if (path.basename(configPath) !== 'config.json') {
+      // An explicit non-default path that doesn't exist is a mistake worth
+      // reporting; the default "config.json" simply being absent is fine.
+      throw new Error(`Config file not found: ${path.resolve(configPath)}`);
+    }
+  } else {
+    const found = findConfigFile();
+    if (found) {
+      fileConfig = found.config;
+      log.debug(`Config loaded from ${found.path}`);
+    } else if (fs.existsSync(path.resolve('config.json'))) {
+      fileConfig = readConfigFile('config.json');
+      log.debug(`Config loaded from ${path.resolve('config.json')}`);
+    }
   }
   return resolveConfig({ ...fileConfig, ...withoutUndefined(overrides) });
 }
 
-module.exports = { loadConfig, resolveConfig, DEFAULT_API_URL };
+module.exports = { loadConfig, resolveConfig, DEFAULT_API_URL, findConfigFile };

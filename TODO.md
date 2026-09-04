@@ -5,7 +5,7 @@ run of **any size** — from 10 tests to 1,000,000 — in bounded memory and tim
 and make it speak the formats the industry actually produces (functional **and**
 load/perf tooling).
 
-> **Progress:** **E1, E2a, E3 (bar a parser registry), E4, E5, E7 done.** **E9/E9b: 7 new formats shipped** (TestNG, NUnit3, Mochawesome, CTRF, TAP, k6, JMeter CSV+XML) with content-sniffed dispatch; Robot Framework, `.trx`, Gatling, Locust, `--output ctrf` and the dialect-conformance fixtures remain. E6: coverage gate + nightly load test in place; real-tool fixtures + fuzzing still open. E0 contract doc written (answers owed - blocks E2). E2/E3/E8/E10/E11 not started.
+> **Progress:** **E1, E2a, E3 (bar a parser registry), E4, E5, E7, E8 (bar schema-validation errors) done.** **E9/E9b: 7 new formats shipped** (TestNG, NUnit3, Mochawesome, CTRF, TAP, k6, JMeter CSV+XML) with content-sniffed dispatch; Robot Framework, `.trx`, Gatling, Locust, `--output ctrf` and the dialect-conformance fixtures remain. E6: coverage gate + nightly load test in place; real-tool fixtures + fuzzing still open. E0 contract doc written (answers owed - blocks E2). E2/E3/E8/E10/E11 not started.
 
 ## Definition of done for "scales regardless of upload size"
 
@@ -97,11 +97,11 @@ Everything below assumes a known server contract. The `dashboard-api` repo's
 
 ## E8 — Config & DX · P2 · M
 
-- [ ] cosmiconfig-style discovery: `testrix.config.{json,cjs,js}`, `.testrixrc`, a `testrix` key in `package.json`, walking up from cwd; keep `config.json` with a deprecation note.
-- [ ] Ship a JSON Schema for the config; validate against it with an error that names the offending path.
-- [ ] `testrix init` — scaffold config + print the CI snippet for the detected provider.
-- [ ] Publish `.d.ts` for the programmatic API.
-- [ ] `--print-config` — resolved config with secrets redacted.
+- [x] cosmiconfig-style discovery (`src/config-discovery.js`): `testrix.config.{json,cjs,js}` → `.testrixrc(.json)` → a `testrix` key in `package.json`, walking up from cwd; falls back to the legacy `config.json` (cwd-only, not walked up - unchanged behaviour for existing setups).
+- [x] `config.schema.json` shipped for editor autocomplete (`$schema` key in the config file). **Not done:** runtime validation against it with a path-naming error — currently only `projectId`/`apiKey`/`reportFiles`/`serverApiUrl` shape are checked (in `resolveConfig`); an unrecognised key is silently ignored rather than flagged.
+- [x] `testrix init` — writes `testrix.config.json` (refuses to overwrite an existing one) and prints a CI snippet for the detected provider (GitHub/GitLab/CircleCI/Jenkins/Bitbucket/generic).
+- [x] `.d.ts` for the programmatic API — shipped in E3.
+- [x] `--print-config` — resolved config, `apiKey` redacted to `***`.
 
 ## E9 — Format coverage: functional test frameworks · P1 · L
 

@@ -51,7 +51,9 @@ That's the whole setup in CI. Testrix will:
 
 ### Config file (optional)
 
-Only for values you want to pin. `src/config.json.template` is the minimal form:
+Only for values you want to pin. Run `testrix init` to scaffold one (and print
+a CI snippet for the provider it detects), or write it by hand -
+`src/config.json.template` is the minimal form:
 
 ```json
 {
@@ -59,6 +61,16 @@ Only for values you want to pin. `src/config.json.template` is the minimal form:
   "apiKey": "YOUR_API_KEY"
 }
 ```
+
+With no `-c`/positional path, Testrix looks for a config file in this order,
+walking up from the current directory: `testrix.config.json` →
+`testrix.config.cjs` → `testrix.config.js` → `.testrixrc` → `.testrixrc.json` →
+a `testrix` key in `package.json` → `./config.json` (cwd only, not walked up -
+the original default). `testrix.config.json` and `.testrixrc(.json)` accept a
+`"$schema": "./node_modules/testrix-cli/config.schema.json"` key for editor
+autocomplete (added automatically by `testrix init`). `--print-config` prints
+the fully-resolved config, secrets redacted, so you can see where a value
+actually came from.
 
 All supported keys (every one is optional except `projectId` / `apiKey`, and each
 has an env var and, for most, a CLI flag):

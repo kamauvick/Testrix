@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 'use strict';
 
+const fs = require('node:fs');
+const path = require('node:path');
+
 const { version } = require('./package.json');
 const log = require('./src/logger');
 const { loadConfig } = require('./src/config');
 const { publishTestReports } = require('./src/publisher');
+const { detectCiMetadata } = require('./src/ci');
 
 const HELP = `testrix v${version}
 
@@ -36,15 +40,23 @@ Options:
       --max-upload-bytes <n>  Reject the upload locally above this size (env: TESTRIX_MAX_UPLOAD_BYTES, default 20MB)
       --gzip             Compress the upload body (env: TESTRIX_GZIP; only if your server inflates it)
       --output <fmt>     'text' (default) or 'json' (machine-readable result on stdout)
+      --print-config     Print the fully-resolved config (secrets redacted) and exit
       --dry-run          Parse and summarise, but do not publish
       --fail-on-empty    Exit non-zero (2) if no tests were parsed
       --fail-on-failed   Exit non-zero (3) if any test failed
   -h, --help             Show this help
   -v, --version          Show the version
 
+Commands:
+  testrix init           Scaffold testrix.config.json and print a CI snippet
+
   TESTRIX_LOG_LEVEL      silent | error | warn | info (default) | debug
 
 Exit codes: 0 ok · 1 error (config / parse / upload) · 2 --fail-on-empty · 3 --fail-on-failed
+
+Config is found, in order: -c/--config <path> > testrix.config.{json,cjs,js}
+> .testrixrc(.json) > a "testrix" key in package.json (searched walking up
+from cwd) > ./config.json > CLI flags / env / CI / git alone.
 `;
 
 // flag -> config key (all take a value)
@@ -73,6 +85,7 @@ const BOOL_FLAGS = new Set([
   '--fail-on-failed',
   '--allow-insecure-url',
   '--gzip',
+  '--print-config',
 ]);
 
 function parseArgs(args) {
@@ -132,7 +145,78 @@ const num = (value, label) => {
   return n;
 };
 
+const CI_SNIPPETS = {
+  github: [
+    '# .github/workflows/test.yml',
+    '- run: npx testrix-cli',
+    '  env:',
+    '    TESTRIX_PROJECT_ID: ${{ secrets.TESTRIX_PROJECT_ID }}',
+    '    TESTRIX_API_KEY: ${{ secrets.TESTRIX_API_KEY }}',
+  ],
+  gitlab: [
+    '# .gitlab-ci.yml',
+    'testrix:',
+    '  script:',
+    '    - npx testrix-cli',
+    '  variables:',
+    '    TESTRIX_PROJECT_ID: $TESTRIX_PROJECT_ID',
+    '    TESTRIX_API_KEY: $TESTRIX_API_KEY',
+  ],
+  circleci: [
+    '# .circleci/config.yml',
+    '- run:',
+    '    name: Publish test results',
+    '    command: npx testrix-cli',
+    '    environment:',
+    '      TESTRIX_PROJECT_ID: $TESTRIX_PROJECT_ID',
+  ],
+  jenkins: [
+    '// Jenkinsfile',
+    "sh 'npx testrix-cli'",
+    '// set TESTRIX_PROJECT_ID / TESTRIX_API_KEY via withCredentials or the environment {} block',
+  ],
+  bitbucket: ['# bitbucket-pipelines.yml', '- step:', '    script:', '      - npx testrix-cli'],
+  ci: [
+    'npx testrix-cli',
+    '# set TESTRIX_PROJECT_ID and TESTRIX_API_KEY as secrets in your CI provider',
+  ],
+};
+
+function runInit() {
+  const target = path.resolve('testrix.config.json');
+  if (fs.existsSync(target)) {
+    process.stdout.write(`${target} already exists - leaving it alone.\n\n`);
+  } else {
+    fs.writeFileSync(
+      target,
+      `${JSON.stringify(
+        { $schema: './node_modules/testrix-cli/config.schema.json', projectId: '', apiKey: '' },
+        null,
+        2,
+      )}\n`,
+    );
+    process.stdout.write(
+      `Wrote ${target}. Fill in projectId / apiKey, or set them as env vars.\n\n`,
+    );
+  }
+
+  const provider = detectCiMetadata(process.env).provider;
+  const snippet = CI_SNIPPETS[provider] || CI_SNIPPETS.ci;
+  if (provider) {
+    process.stdout.write(`Detected CI: ${provider}. Suggested step:\n\n`);
+  } else {
+    process.stdout.write('Not running in a recognised CI provider right now. A generic step:\n\n');
+  }
+  process.stdout.write(`${snippet.join('\n')}\n\n`);
+  process.stdout.write('Everything else (branch, commit, environment, user) is auto-detected.\n');
+}
+
 async function main(argv) {
+  if (argv[2] === 'init') {
+    runInit();
+    return 0;
+  }
+
   const parsed = parseArgs(argv.slice(2));
   if (parsed.help) {
     process.stdout.write(HELP);
@@ -151,10 +235,16 @@ async function main(argv) {
 
   reportsToOverrides(parsed.reports, parsed.overrides);
   if (parsed.flags['allow-insecure-url']) parsed.overrides.allowInsecureUrl = true;
-  const configPath = parsed.configPath || 'config.json';
-  log.debug(`Loading config (file: ${configPath} if present)`);
-  const config = loadConfig(configPath, parsed.overrides);
+  // Leaving configPath undefined (no -c / positional arg) lets loadConfig
+  // search testrix.config.*/.testrixrc/package.json#testrix/config.json itself.
+  const config = loadConfig(parsed.configPath, parsed.overrides);
   log.addSecret(config.apiKey); // never let the key reach a log line
+
+  if (parsed.flags['print-config']) {
+    const redacted = { ...config, apiKey: config.apiKey ? '***' : config.apiKey };
+    process.stdout.write(`${JSON.stringify(redacted, null, 2)}\n`);
+    return 0;
+  }
 
   const result = await publishTestReports(config, {
     dryRun: Boolean(parsed.flags['dry-run']),

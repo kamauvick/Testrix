@@ -51,6 +51,7 @@
   },
   "files": [
     "cli.js",
+    "config.schema.json",
     "src/"
   ],
   "repository": {

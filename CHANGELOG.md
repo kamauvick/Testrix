@@ -82,6 +82,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cheerio` and `xlsx` are now `require`d lazily, only when an `.html` / `.xls(x)`
   report is actually parsed.
 
+### Added (config & DX)
+
+- Config discovery, cosmiconfig-style: `testrix.config.{json,cjs,js}` →
+  `.testrixrc(.json)` → a `testrix` key in `package.json`, walking up from cwd;
+  falls back to the legacy `./config.json` unchanged.
+- `testrix init` — scaffolds `testrix.config.json` and prints a CI snippet for
+  the detected provider.
+- `config.schema.json` for editor autocomplete (`"$schema"` in the config
+  file, added automatically by `testrix init`).
+- `--print-config` — the fully-resolved config, `apiKey` redacted.
+
 ### Added (programmatic API)
 
 - `createReporter(config)` (`src/reporter.js`): an `EventEmitter`-based wrapper

@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Testrix CLI config",
+  "description": "Config file for testrix-cli. See https://github.com/kamauvick/Testrix#config-file-optional. Every key is optional except projectId/apiKey, which can also come from TESTRIX_PROJECT_ID/TESTRIX_API_KEY.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "projectId": { "type": "string", "description": "Required (or TESTRIX_PROJECT_ID)." },
+    "apiKey": { "type": "string", "description": "Required (or TESTRIX_API_KEY)." },
+    "serverApiUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "Defaults to the prod dashboard API."
+    },
+    "dashboardUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "Web UI base for the printed run link; derived from serverApiUrl otherwise."
+    },
+    "allowInsecureUrl": { "type": "boolean", "default": false },
+    "reportsDir": {
+      "type": "string",
+      "description": "Auto-discovered when omitted (test-results/, test-reports/, reports/, junit/, .)."
+    },
+    "reportFiles": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Explicit files, directories, or globs, in addition to reportsDir."
+    },
+    "userId": {
+      "type": "string",
+      "description": "Defaults to the CI actor, then git config user.email, then the OS user."
+    },
+    "environment": { "type": ["string", "null"] },
+    "branch": { "type": ["string", "null"], "description": "Defaults to CI, then git." },
+    "commit": { "type": ["string", "null"], "description": "Defaults to CI, then git." },
+    "name": {
+      "type": "string",
+      "description": "Test run name; defaults to the CI workflow/job name, then the discovered suite names."
+    },
+    "startTime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Defaults to the run window read from the reports."
+    },
+    "endTime": { "type": "string", "format": "date-time" },
+    "maxCases": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 200000,
+      "description": "0 = unlimited."
+    },
+    "includeSuitesInPayload": { "type": "boolean", "default": false },
+    "projectDescription": { "type": "string" }
+  }
+}
