@@ -82,6 +82,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cheerio` and `xlsx` are now `require`d lazily, only when an `.html` / `.xls(x)`
   report is actually parsed.
 
+### Added (upload)
+
+- `--gzip` (env `TESTRIX_GZIP`): compress the upload body, off by default until
+  a server is confirmed to inflate `Content-Encoding: gzip`.
+- `--max-upload-bytes` (env `TESTRIX_MAX_UPLOAD_BYTES`, default 20 MB): the
+  body is checked against this cap _before_ sending, so an oversized run gets
+  a clear local error instead of a slow upload followed by a 413.
+
 ### Security
 
 - API key and `Authorization` values are redacted from logs and error messages;

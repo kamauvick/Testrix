@@ -270,7 +270,7 @@ function buildPayload(config, { testCases, suites, startTime, endTime }) {
 /**
  * Discover, parse and publish test reports described by `config`.
  * @param {import('./config').TestrixConfig} config
- * @param {{ dryRun?: boolean, retries?: number, timeoutMs?: number }} [options]
+ * @param {{ dryRun?: boolean, retries?: number, timeoutMs?: number, gzip?: boolean, maxUploadBytes?: number }} [options]
  * @returns {Promise<{ summary: object, published: number, testRunId?: string, url?: string, dryRun: boolean }>}
  */
 async function publishTestReports(config, options = {}) {

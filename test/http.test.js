@@ -3,8 +3,24 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
+const zlib = require('node:zlib');
 
 const { submitReport, deriveRunUrl, backoffMs, proxyDispatcher } = require('../src/http');
+
+/** Like `serve`, but hands the handler the raw request body Buffer (for gzip). */
+function serveRaw(onRequest) {
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      const chunks = [];
+      req.on('data', (c) => chunks.push(c));
+      req.on('end', () => onRequest(req, res, Buffer.concat(chunks)));
+    });
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address();
+      resolve({ server, url: `http://127.0.0.1:${port}/submit` });
+    });
+  });
+}
 
 /** Start a throwaway HTTP server whose handler is `onRequest`. */
 function serve(onRequest) {
@@ -182,5 +198,47 @@ test('proxyDispatcher: picks HTTPS_PROXY, honours NO_PROXY, off by default', () 
       if (v === undefined) delete process.env[k];
       else process.env[k] = v;
     }
+  }
+});
+
+test('submitReport: --gzip compresses the body and sets Content-Encoding', async () => {
+  let seenHeader;
+  let seenBody;
+  const { server, url } = await serveRaw((req, res, raw) => {
+    seenHeader = req.headers['content-encoding'];
+    seenBody = JSON.parse(zlib.gunzipSync(raw).toString('utf8'));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ testRunId: 'r' }));
+  });
+  try {
+    const out = await submitReport(
+      { serverApiUrl: url, apiKey: 'k' },
+      { testCases: [{ title: 'a' }] },
+      { gzip: true },
+    );
+    assert.equal(out.testRunId, 'r');
+    assert.equal(seenHeader, 'gzip');
+    assert.deepEqual(seenBody, { testCases: [{ title: 'a' }] });
+  } finally {
+    server.close();
+  }
+});
+
+test('submitReport: an oversized body is rejected locally, before any request is sent', async () => {
+  let hits = 0;
+  const { server, url } = await serve((req, res) => {
+    hits += 1;
+    res.writeHead(200);
+    res.end('{}');
+  });
+  try {
+    const bigPayload = { testCases: [{ title: 'x'.repeat(1000) }] };
+    await assert.rejects(
+      () => submitReport({ serverApiUrl: url, apiKey: 'k' }, bigPayload, { maxUploadBytes: 100 }),
+      /over the configured/,
+    );
+    assert.equal(hits, 0, 'no request should have been made');
+  } finally {
+    server.close();
   }
 });

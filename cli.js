@@ -33,6 +33,8 @@ Options:
       --timeout <ms>     Upload timeout per attempt   (env: TESTRIX_UPLOAD_TIMEOUT_MS, default 30000)
       --retries <n>      Upload attempts on transient failure (env: TESTRIX_UPLOAD_RETRIES, default 4)
       --max-cases <n>    Cap on test cases read (env: TESTRIX_MAX_CASES, default 200000; 0 = all)
+      --max-upload-bytes <n>  Reject the upload locally above this size (env: TESTRIX_MAX_UPLOAD_BYTES, default 20MB)
+      --gzip             Compress the upload body (env: TESTRIX_GZIP; only if your server inflates it)
       --output <fmt>     'text' (default) or 'json' (machine-readable result on stdout)
       --dry-run          Parse and summarise, but do not publish
       --fail-on-empty    Exit non-zero (2) if no tests were parsed
@@ -60,6 +62,7 @@ const VALUE_FLAGS = {
   '--timeout': 'timeout',
   '--retries': 'retries',
   '--max-cases': 'maxCases',
+  '--max-upload-bytes': 'maxUploadBytes',
   '--output': 'output',
   '-c': 'config',
   '--config': 'config',
@@ -69,6 +72,7 @@ const BOOL_FLAGS = new Set([
   '--fail-on-empty',
   '--fail-on-failed',
   '--allow-insecure-url',
+  '--gzip',
 ]);
 
 function parseArgs(args) {
@@ -81,6 +85,8 @@ function parseArgs(args) {
     else if (key === 'reports') parsed.reports.push(value);
     else if (key === 'timeout' || key === 'retries' || key === 'output') parsed.flags[key] = value;
     else if (key === 'maxCases') parsed.overrides.maxCases = num(value, '--max-cases');
+    else if (key === 'maxUploadBytes')
+      parsed.flags.maxUploadBytes = num(value, '--max-upload-bytes');
     else parsed.overrides[key] = value;
   };
 
@@ -154,6 +160,8 @@ async function main(argv) {
     dryRun: Boolean(parsed.flags['dry-run']),
     timeoutMs: num(parsed.flags.timeout, '--timeout'),
     retries: num(parsed.flags.retries, '--retries'),
+    gzip: Boolean(parsed.flags.gzip),
+    maxUploadBytes: parsed.flags.maxUploadBytes,
   });
 
   if (outputJson) {

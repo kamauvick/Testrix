@@ -5,7 +5,7 @@ run of **any size** — from 10 tests to 1,000,000 — in bounded memory and tim
 and make it speak the formats the industry actually produces (functional **and**
 load/perf tooling).
 
-> **Progress:** **E1, E4, E5, E7 done.** **E9/E9b: 7 new formats shipped** (TestNG, NUnit3, Mochawesome, CTRF, TAP, k6, JMeter CSV+XML) with content-sniffed dispatch; Robot Framework, `.trx`, Gatling, Locust, `--output ctrf` and the dialect-conformance fixtures remain. E6: coverage gate + nightly load test in place; real-tool fixtures + fuzzing still open. E0 contract doc written (answers owed - blocks E2). E2/E3/E8/E10/E11 not started.
+> **Progress:** **E1, E2a, E4, E5, E7 done.** **E9/E9b: 7 new formats shipped** (TestNG, NUnit3, Mochawesome, CTRF, TAP, k6, JMeter CSV+XML) with content-sniffed dispatch; Robot Framework, `.trx`, Gatling, Locust, `--output ctrf` and the dialect-conformance fixtures remain. E6: coverage gate + nightly load test in place; real-tool fixtures + fuzzing still open. E0 contract doc written (answers owed - blocks E2). E2/E3/E8/E10/E11 not started.
 
 ## Definition of done for "scales regardless of upload size"
 
@@ -48,7 +48,7 @@ Everything below assumes a known server contract. The `dashboard-api` repo's
 - [ ] Bounded concurrency for batch POSTs (default 4–6 in flight) with backpressure from the parse stream.
 - [ ] Resumability: persist acked batch indices to `.testrix/state-<runId>.json`; `--resume` re-sends only the gap. Idempotency keys make re-sends safe with or without the state file.
 - [ ] Feature-probe (or `--legacy-upload`): fall back to a single POST **with a hard size cap** and a clear over-cap error.
-- [ ] **E2a (ship now, no API dep):** gzip the existing single POST, add the size cap + guidance, reuse the retry/backoff in `src/http.js`.
+- [x] **E2a (shipped, no API dep):** `--gzip` (opt-in, off by default until a server confirms it inflates `Content-Encoding: gzip` - see `docs/api-contract.md`) and a hard client-side `--max-upload-bytes` cap (default 20 MB) that rejects an oversized body _before_ sending it, with a clear message pointing at `--max-cases` / `--gzip`. Reuses the retry/backoff in `src/http.js`.
 - [ ] Test: 1M-case upload against a mock server; kill mid-upload, `--resume`, no duplicates.
 
 ## E3 — Architecture & module boundaries · P1 · M

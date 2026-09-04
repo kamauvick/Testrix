@@ -63,26 +63,28 @@ Only for values you want to pin. `src/config.json.template` is the minimal form:
 All supported keys (every one is optional except `projectId` / `apiKey`, and each
 has an env var and, for most, a CLI flag):
 
-| Key                      | Env var                      | Flag                            | Default                                 |
-| ------------------------ | ---------------------------- | ------------------------------- | --------------------------------------- |
-| `projectId`              | `TESTRIX_PROJECT_ID`         | `--project`                     | **required**                            |
-| `apiKey`                 | `TESTRIX_API_KEY`            | `--api-key`                     | **required**                            |
-| `serverApiUrl`           | `TESTRIX_SERVER_API_URL`     | `--url`                         | prod dashboard API                      |
-| `allowInsecureUrl`       | `TESTRIX_ALLOW_INSECURE_URL` | `--allow-insecure-url`          | `false` (https required off-localhost)  |
-| `dashboardUrl`           | `TESTRIX_DASHBOARD_URL`      | `--dashboard-url`               | derived from `serverApiUrl`             |
-| `reportsDir`             | `TESTRIX_REPORTS_DIR`        | `--reports`                     | auto-discovered                         |
-| `reportFiles`            | —                            | `--reports` (repeatable, globs) | —                                       |
-| `userId`                 | `TESTRIX_USER_ID`            | `--user`                        | CI actor → git email → OS user          |
-| `environment`            | `TESTRIX_ENVIRONMENT`        | `--env`                         | CI environment, else none               |
-| `branch`                 | `TESTRIX_BRANCH`             | `--branch`                      | CI, else `git`                          |
-| `commit`                 | `TESTRIX_COMMIT`             | `--commit`                      | CI, else `git`                          |
-| `name`                   | `TESTRIX_RUN_NAME`           | `--name`                        | CI workflow/job, else suite names       |
-| —                        | `TESTRIX_UPLOAD_TIMEOUT_MS`  | `--timeout`                     | `30000` (per attempt)                   |
-| —                        | `TESTRIX_UPLOAD_RETRIES`     | `--retries`                     | `4` (retries transient 5xx/429/network) |
-| `maxCases`               | `TESTRIX_MAX_CASES`          | `--max-cases`                   | `200000` (`0` = unlimited)              |
-| —                        | `TESTRIX_MAX_FIELD_BYTES`    | —                               | `16384` per error/stdout/stderr field   |
-| `includeSuitesInPayload` | —                            | —                               | `false`                                 |
-| `projectDescription`     | —                            | —                               | —                                       |
+| Key                      | Env var                      | Flag                            | Default                                             |
+| ------------------------ | ---------------------------- | ------------------------------- | --------------------------------------------------- |
+| `projectId`              | `TESTRIX_PROJECT_ID`         | `--project`                     | **required**                                        |
+| `apiKey`                 | `TESTRIX_API_KEY`            | `--api-key`                     | **required**                                        |
+| `serverApiUrl`           | `TESTRIX_SERVER_API_URL`     | `--url`                         | prod dashboard API                                  |
+| `allowInsecureUrl`       | `TESTRIX_ALLOW_INSECURE_URL` | `--allow-insecure-url`          | `false` (https required off-localhost)              |
+| `dashboardUrl`           | `TESTRIX_DASHBOARD_URL`      | `--dashboard-url`               | derived from `serverApiUrl`                         |
+| `reportsDir`             | `TESTRIX_REPORTS_DIR`        | `--reports`                     | auto-discovered                                     |
+| `reportFiles`            | —                            | `--reports` (repeatable, globs) | —                                                   |
+| `userId`                 | `TESTRIX_USER_ID`            | `--user`                        | CI actor → git email → OS user                      |
+| `environment`            | `TESTRIX_ENVIRONMENT`        | `--env`                         | CI environment, else none                           |
+| `branch`                 | `TESTRIX_BRANCH`             | `--branch`                      | CI, else `git`                                      |
+| `commit`                 | `TESTRIX_COMMIT`             | `--commit`                      | CI, else `git`                                      |
+| `name`                   | `TESTRIX_RUN_NAME`           | `--name`                        | CI workflow/job, else suite names                   |
+| —                        | `TESTRIX_UPLOAD_TIMEOUT_MS`  | `--timeout`                     | `30000` (per attempt)                               |
+| —                        | `TESTRIX_UPLOAD_RETRIES`     | `--retries`                     | `4` (retries transient 5xx/429/network)             |
+| `maxCases`               | `TESTRIX_MAX_CASES`          | `--max-cases`                   | `200000` (`0` = unlimited)                          |
+| —                        | `TESTRIX_MAX_UPLOAD_BYTES`   | `--max-upload-bytes`            | `20971520` (20 MB; rejected locally before sending) |
+| —                        | `TESTRIX_GZIP`               | `--gzip`                        | `false` (only if your server inflates gzip)         |
+| —                        | `TESTRIX_MAX_FIELD_BYTES`    | —                               | `16384` per error/stdout/stderr field               |
+| `includeSuitesInPayload` | —                            | —                               | `false`                                             |
+| `projectDescription`     | —                            | —                               | —                                                   |
 
 `startTime` / `endTime` default to the run window read from the reports
 themselves (JUnit `timestamp` + `time`, Playwright `stats`), falling back to

@@ -1,6 +1,7 @@
 'use strict';
 
 const { randomUUID } = require('node:crypto');
+const zlib = require('node:zlib');
 const { fetch: undiciFetch, ProxyAgent } = require('undici');
 
 const log = require('./logger');
@@ -98,11 +99,19 @@ async function postFollowingSameOriginRedirects(startUrl, init) {
   throw new Error(`Too many redirects (> ${MAX_REDIRECTS}) from ${redactUrl(startUrl)}`);
 }
 
+const truthy = (v) => /^(1|true|yes|on)$/i.test(String(v || ''));
+
 /**
  * POST `payload` to the dashboard API with a timeout, a bounded retry loop for
  * transient failures, a `User-Agent`, and an `Idempotency-Key` so a retried
  * request never creates a duplicate run. Routes through `HTTPS_PROXY` /
  * `HTTP_PROXY` when set, and refuses to silently follow a cross-origin redirect.
+ *
+ * The body is checked against a hard size cap *before* sending - a run large
+ * enough to trip a server body-size limit gets a clear, local error instead of
+ * a cryptic 413 after a slow upload. Enable `--gzip` once your server is
+ * confirmed to inflate `Content-Encoding: gzip` (not on by default - see
+ * docs/api-contract.md).
  * @returns {Promise<{ testRunId?: string, raw: any }>}
  */
 async function submitReport(config, payload, options = {}) {
@@ -111,14 +120,31 @@ async function submitReport(config, payload, options = {}) {
     1000,
     Number(options.timeoutMs ?? process.env.TESTRIX_UPLOAD_TIMEOUT_MS ?? 30_000),
   );
+  const gzipEnabled = Boolean(options.gzip ?? truthy(process.env.TESTRIX_GZIP));
+  const maxUploadBytes = Math.max(
+    1,
+    Number(options.maxUploadBytes ?? process.env.TESTRIX_MAX_UPLOAD_BYTES ?? 20 * 1024 * 1024),
+  );
   const retryDelayMs = options.retryDelayMs; // tests only - skip the real backoff wait
-  const body = JSON.stringify(payload);
+
+  const json = JSON.stringify(payload);
+  const body = gzipEnabled ? zlib.gzipSync(json) : json;
+  const bodyBytes = Buffer.byteLength(body);
+  if (bodyBytes > maxUploadBytes) {
+    throw new Error(
+      `Upload body is ${(bodyBytes / 1e6).toFixed(1)}MB, over the configured ` +
+        `${(maxUploadBytes / 1e6).toFixed(1)}MB limit (--max-upload-bytes / TESTRIX_MAX_UPLOAD_BYTES). ` +
+        `Reduce the run with --max-cases${gzipEnabled ? '' : ', or enable --gzip to compress the body'}.`,
+    );
+  }
+
   const headers = {
     'Content-Type': 'application/json',
     'x-api-key': config.apiKey,
     'User-Agent': USER_AGENT,
     'Idempotency-Key': randomUUID(),
   };
+  if (gzipEnabled) headers['Content-Encoding'] = 'gzip';
 
   let lastError;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
