@@ -6,6 +6,7 @@
  *   const { loadConfig, publishTestReports } = require('testrix-cli');
  */
 const { loadConfig, resolveConfig, DEFAULT_API_URL } = require('./config');
+// Re-exports parseJUnit / parseHtml / parseExcel / parsePlaywrightJson and helpers.
 const parsers = require('./parsers');
 const {
   publishTestReports,
