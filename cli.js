@@ -40,6 +40,8 @@ Options:
       --max-upload-bytes <n>  Reject the upload locally above this size (env: TESTRIX_MAX_UPLOAD_BYTES, default 20MB)
       --gzip             Compress the upload body (env: TESTRIX_GZIP; only if your server inflates it)
       --output <fmt>     'text' (default) or 'json' (machine-readable result on stdout)
+      --log-format <fmt> 'text' (default) or 'json' (one JSON object per log line, to stderr/stdout per --output)
+      --debug-bundle <path>  Write resolved config, files, summary & timings (secrets redacted) as JSON, for bug reports
       --print-config     Print the fully-resolved config (secrets redacted) and exit
       --dry-run          Parse and summarise, but do not publish
       --fail-on-empty    Exit non-zero (2) if no tests were parsed
@@ -76,6 +78,8 @@ const VALUE_FLAGS = {
   '--max-cases': 'maxCases',
   '--max-upload-bytes': 'maxUploadBytes',
   '--output': 'output',
+  '--log-format': 'logFormat',
+  '--debug-bundle': 'debugBundle',
   '-c': 'config',
   '--config': 'config',
 };
@@ -96,8 +100,16 @@ function parseArgs(args) {
     const key = VALUE_FLAGS[flag];
     if (key === 'config') parsed.configPath = value;
     else if (key === 'reports') parsed.reports.push(value);
-    else if (key === 'timeout' || key === 'retries' || key === 'output') parsed.flags[key] = value;
-    else if (key === 'maxCases') parsed.overrides.maxCases = num(value, '--max-cases');
+    else if (
+      key === 'timeout' ||
+      key === 'retries' ||
+      key === 'output' ||
+      key === 'logFormat' ||
+      key === 'debugBundle'
+    ) {
+      const flagKey = { logFormat: 'log-format', debugBundle: 'debug-bundle' }[key] || key;
+      parsed.flags[flagKey] = value;
+    } else if (key === 'maxCases') parsed.overrides.maxCases = num(value, '--max-cases');
     else if (key === 'maxUploadBytes')
       parsed.flags.maxUploadBytes = num(value, '--max-upload-bytes');
     else parsed.overrides[key] = value;
@@ -182,6 +194,22 @@ const CI_SNIPPETS = {
   ],
 };
 
+/**
+ * Write a JSON snapshot (secrets redacted) of what happened during a run -
+ * resolved config, discovered files, parse summary, timings, and the error
+ * message if the run failed - for attaching to a bug report. Despite the flag
+ * name this is one JSON file, not an archive; the name matches TODO.md E10's
+ * "debug bundle" and is kept simple deliberately.
+ */
+function writeDebugBundle(bundlePath, data) {
+  try {
+    fs.writeFileSync(path.resolve(bundlePath), `${JSON.stringify(data, null, 2)}\n`);
+    log.info(`Wrote debug bundle to ${path.resolve(bundlePath)}`);
+  } catch (err) {
+    log.warn(`Could not write debug bundle to ${bundlePath}: ${err.message}`);
+  }
+}
+
 function runInit() {
   const target = path.resolve('testrix.config.json');
   if (fs.existsSync(target)) {
@@ -233,6 +261,12 @@ async function main(argv) {
   }
   if (outputJson) log.routeToStderr(); // keep stdout clean for the JSON result
 
+  const logFormat = parsed.flags['log-format'] || process.env.TESTRIX_LOG_FORMAT || 'text';
+  if (logFormat && !['text', 'json'].includes(logFormat)) {
+    throw new Error("--log-format must be 'text' or 'json'");
+  }
+  if (logFormat === 'json') log.useJsonFormat();
+
   reportsToOverrides(parsed.reports, parsed.overrides);
   if (parsed.flags['allow-insecure-url']) parsed.overrides.allowInsecureUrl = true;
   // Leaving configPath undefined (no -c / positional arg) lets loadConfig
@@ -246,13 +280,41 @@ async function main(argv) {
     return 0;
   }
 
-  const result = await publishTestReports(config, {
-    dryRun: Boolean(parsed.flags['dry-run']),
-    timeoutMs: num(parsed.flags.timeout, '--timeout'),
-    retries: num(parsed.flags.retries, '--retries'),
-    gzip: Boolean(parsed.flags.gzip),
-    maxUploadBytes: parsed.flags.maxUploadBytes,
-  });
+  const debugBundlePath = parsed.flags['debug-bundle'];
+  const debug = debugBundlePath
+    ? {
+        version,
+        node: process.version,
+        platform: process.platform,
+        config: { ...config, apiKey: config.apiKey ? '***' : config.apiKey },
+      }
+    : null;
+  const onEvent = debug
+    ? (name, data) => {
+        if (name === 'discover') debug.files = data.files;
+        else if (name === 'parse')
+          Object.assign(debug, { summary: data.summary, truncated: data.truncated });
+        else if (name === 'upload:start') debug.uploadCount = data.count;
+        else if (name === 'upload:done')
+          Object.assign(debug, { testRunId: data.testRunId, url: data.url });
+      }
+    : undefined;
+
+  let result;
+  try {
+    result = await publishTestReports(config, {
+      dryRun: Boolean(parsed.flags['dry-run']),
+      timeoutMs: num(parsed.flags.timeout, '--timeout'),
+      retries: num(parsed.flags.retries, '--retries'),
+      gzip: Boolean(parsed.flags.gzip),
+      maxUploadBytes: parsed.flags.maxUploadBytes,
+      onEvent,
+    });
+  } catch (err) {
+    if (debug) writeDebugBundle(debugBundlePath, { ...debug, error: err.message });
+    throw err;
+  }
+  if (debug) writeDebugBundle(debugBundlePath, { ...debug, timings: result.timings });
 
   if (outputJson) {
     process.stdout.write(

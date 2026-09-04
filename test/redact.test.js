@@ -47,3 +47,27 @@ test('the logger scrubs a registered secret from every level', () => {
   );
   assert.ok(lines.some((l) => l.includes('***')));
 });
+
+test('useJsonFormat emits one parseable JSON object per line, still scrubbed', () => {
+  const modPath = require.resolve('../src/logger');
+  delete require.cache[modPath];
+  const log = require(modPath);
+
+  const lines = [];
+  const origLog = console.log;
+  try {
+    console.log = (line) => lines.push(line);
+    log.useJsonFormat();
+    log.addSecret('sekret-value');
+    log.info('publishing with key sekret-value');
+  } finally {
+    console.log = origLog;
+    delete require.cache[modPath];
+  }
+
+  assert.equal(lines.length, 1);
+  const parsed = JSON.parse(lines[0]);
+  assert.equal(parsed.level, 'info');
+  assert.equal(parsed.msg, 'publishing with key ***');
+  assert.ok(parsed.ts);
+});

@@ -124,3 +124,42 @@ test('unknown option fails fast with exit 1', async () => {
   assert.equal(code, 1);
   assert.match(stderr, /Unknown option: --bogus/);
 });
+
+test('--log-format json emits parseable JSON log lines', async () => {
+  const dir = tmpWithReport('playwright-junit.xml');
+  try {
+    const { code, stdout, stderr } = await runCli(
+      ['--project', 'p', '--api-key', 'k', '--dry-run', '--log-format', 'json'],
+      { cwd: dir, env: { TESTRIX_LOG_LEVEL: 'info' } },
+    );
+    assert.equal(code, 0);
+    const lines = (stdout + stderr).trim().split('\n').filter(Boolean);
+    assert.ok(lines.length > 0);
+    for (const line of lines) {
+      const parsed = JSON.parse(line);
+      assert.ok(parsed.level && parsed.msg && parsed.ts);
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('--debug-bundle writes a redacted JSON snapshot of the run', async () => {
+  const dir = tmpWithReport('playwright-junit.xml');
+  const bundlePath = path.join(dir, 'bundle.json');
+  try {
+    const { code } = await runCli(
+      ['--project', 'p', '--api-key', 'super-secret', '--dry-run', '--debug-bundle', bundlePath],
+      { cwd: dir },
+    );
+    assert.equal(code, 0);
+    const bundle = JSON.parse(fs.readFileSync(bundlePath, 'utf8'));
+    assert.equal(bundle.config.apiKey, '***');
+    assert.equal(bundle.summary.total, 5);
+    assert.equal(bundle.files.length, 1);
+    assert.ok(bundle.timings.parseMs >= 0);
+    assert.ok(!JSON.stringify(bundle).includes('super-secret'));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

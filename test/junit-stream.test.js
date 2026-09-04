@@ -86,6 +86,35 @@ test('a JUnit report with DTD entity definitions is rejected (billion-laughs gua
   }
 });
 
+test('a truncated / malformed XML file is rejected cleanly, not hung or crashed', async () => {
+  // Root element never closes - e.g. the writer was killed mid-run.
+  const xml =
+    '<?xml version="1.0"?>\n<testsuites><testsuite name="s" tests="1">' +
+    '<testcase name="a" time="0.1">';
+  const { file, dir } = tmpFile('truncated.xml', xml);
+  try {
+    await assert.rejects(() => parseJUnit(file));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a huge attribute value is clamped rather than bloating the record', async () => {
+  const hugeName = 'n'.repeat(1_000_000);
+  const xml =
+    `<?xml version="1.0"?><testsuites><testsuite name="s" tests="1">` +
+    `<testcase name="${hugeName}" classname="${hugeName}" time="0.01"/></testsuite></testsuites>`;
+  const { file, dir } = tmpFile('huge-attr.xml', xml);
+  try {
+    const { testCases } = await parseJUnit(file);
+    assert.equal(testCases.length, 1);
+    assert.ok(testCases[0].title.length < hugeName.length);
+    assert.ok(testCases[0].file.length < hugeName.length);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('clampField leaves short strings untouched and marks truncation', () => {
   assert.equal(clampField('short'), 'short');
   assert.equal(clampField('', 10), '');

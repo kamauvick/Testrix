@@ -6,7 +6,9 @@
  *
  * `routeToStderr()` sends every level to stderr - used by `--output json` so
  * stdout carries only the machine-readable result. `addSecret()` registers a
- * value to be scrubbed from every line before it is written.
+ * value to be scrubbed from every line before it is written. `useJsonFormat()`
+ * (`--log-format json`) emits one JSON object per line instead of a plain
+ * `[testrix] message`, for CI log processors.
  */
 const { redactSecrets } = require('./redact');
 
@@ -15,15 +17,21 @@ const threshold =
   LEVELS[String(process.env.TESTRIX_LOG_LEVEL || 'info').toLowerCase()] ?? LEVELS.info;
 
 let allToStderr = false;
+let jsonFormat = false;
 const secrets = new Set();
 
 const scrub = (arg) =>
-  typeof arg === 'string' && secrets.size > 0 ? redactSecrets(arg, secrets) : arg;
+  typeof arg === 'string' ? (secrets.size > 0 ? redactSecrets(arg, secrets) : arg) : String(arg);
 
 const emit = (level, stdoutSink, args) => {
   if (LEVELS[level] > threshold) return;
   const sink = allToStderr ? console.error : stdoutSink;
-  sink('[testrix]', ...args.map(scrub));
+  const message = args.map(scrub).join(' ');
+  if (jsonFormat) {
+    sink(JSON.stringify({ level, msg: message, ts: new Date().toISOString() }));
+  } else {
+    sink(`[testrix] ${message}`);
+  }
 };
 
 module.exports = {
@@ -33,6 +41,9 @@ module.exports = {
   debug: (...args) => emit('debug', console.log, args),
   routeToStderr: () => {
     allToStderr = true;
+  },
+  useJsonFormat: () => {
+    jsonFormat = true;
   },
   addSecret: (value) => {
     if (value) secrets.add(String(value));

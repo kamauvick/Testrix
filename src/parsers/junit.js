@@ -10,6 +10,11 @@ const { clampField } = require('../limits');
 // Longest ANSI/control run we might split across a stream chunk boundary.
 const CHUNK_CARRY = 24;
 
+// A shorter, separate cap from the error/output fields: titles/paths are never
+// legitimately huge, but a malformed or adversarial attribute value shouldn't
+// be able to bloat a record either.
+const TITLE_CAP = 4096;
+
 const toInt = (value) => {
   const n = parseInt(value, 10);
   return Number.isFinite(n) ? n : 0;
@@ -308,12 +313,12 @@ class JUnitSaxReader {
     if (project && title.startsWith(`[${project}] `)) title = title.slice(project.length + 3);
 
     return makeCase({
-      title,
+      title: clampField(title, TITLE_CAP),
       status,
       duration: secondsToMs(attrs.time),
       project,
-      file: attrs.file || attrs.class || attrs.classname || null,
-      suite: this._suitePath(),
+      file: clampField(attrs.file || attrs.class || attrs.classname || null, TITLE_CAP) || null,
+      suite: clampField(this._suitePath(), TITLE_CAP) || null,
       line: toInt(attrs.line) || null,
       retries: tc.flaky.length + tc.rerun.length,
       flaky: status === 'flaky',

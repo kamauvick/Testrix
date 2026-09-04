@@ -82,6 +82,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cheerio` and `xlsx` are now `require`d lazily, only when an `.html` / `.xls(x)`
   report is actually parsed.
 
+### Added (observability & docs)
+
+- `--log-format json`: one JSON object per line (`{level, msg, ts}`), scrubbed
+  the same as text-mode logs.
+- `--debug-bundle <path>`: a redacted JSON snapshot of a run (resolved config,
+  discovered files, parse summary, timings, and the error on failure) for bug
+  reports.
+- `publishTestReports` / `createReporter().run()` results include
+  `timings: { discoverMs, parseMs, uploadMs }`.
+- `docs/ci-recipes.md`: copy-paste steps for GitHub Actions, GitLab, CircleCI,
+  Jenkins, Bitbucket, plus publish-on-failure and gate-the-build notes.
+- JUnit parsing hardened against a truncated/unclosed-tag file (rejected
+  cleanly instead of hanging) and a megabyte-scale attribute value (clamped);
+  `title`/`file`/`suite` now have their own 4 KB cap alongside the existing
+  16 KB error/output cap.
+
 ### Added (config & DX)
 
 - Config discovery, cosmiconfig-style: `testrix.config.{json,cjs,js}` →

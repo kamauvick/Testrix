@@ -5,7 +5,7 @@ run of **any size** — from 10 tests to 1,000,000 — in bounded memory and tim
 and make it speak the formats the industry actually produces (functional **and**
 load/perf tooling).
 
-> **Progress:** **E1, E2a, E3 (bar a parser registry), E4, E5, E7, E8 (bar schema-validation errors) done.** **E9/E9b: 7 new formats shipped** (TestNG, NUnit3, Mochawesome, CTRF, TAP, k6, JMeter CSV+XML) with content-sniffed dispatch; Robot Framework, `.trx`, Gatling, Locust, `--output ctrf` and the dialect-conformance fixtures remain. E6: coverage gate + nightly load test in place; real-tool fixtures + fuzzing still open. E0 contract doc written (answers owed - blocks E2). E2/E3/E8/E10/E11 not started.
+> **Progress:** **E1, E2a, E3 (bar a parser registry), E4, E5, E7, E8 (bar schema-validation errors), E10 (bar a progress line) done.** E6: coverage gate, nightly load test and fuzz-ish JUnit robustness tests done; real-tool fixtures and golden-file/snapshot tests still open. E11: architecture/scaling/CI-recipe docs done; README physical split and ADRs still open. **E9/E9b: 7 new formats shipped** (TestNG, NUnit3, Mochawesome, CTRF, TAP, k6, JMeter CSV+XML) with content-sniffed dispatch; Robot Framework, `.trx`, Gatling, Locust, `--output ctrf` and the dialect-conformance fixtures remain. E6: coverage gate + nightly load test in place; real-tool fixtures + fuzzing still open. E0 contract doc written (answers owed - blocks E2). E2/E3/E8/E10/E11 not started.
 
 ## Definition of done for "scales regardless of upload size"
 
@@ -81,7 +81,7 @@ Everything below assumes a known server contract. The `dashboard-api` repo's
 
 - [x] Coverage via `c8` with an enforced floor (`test:coverage`: lines 80 / functions 80 / branches 70; currently ~87 / ~91 / ~74).
 - [ ] Replace hand-written fixtures with **real** output from Playwright, Vitest, jest-junit, Pest/PHPUnit, pytest, Cypress, TestNG, `dotnet test` (.trx), Robot Framework, k6, JMeter (see E9 / E9b).
-- [ ] Fuzz the JUnit stream parser: unclosed tags, huge attributes, entity-expansion / billion-laughs (confirm `saxes` limits hold).
+- [x] Fuzz-ish coverage of the JUnit stream parser: unclosed root tag (rejected cleanly, doesn't hang), a 1MB attribute value (clamped, doesn't bloat the record), entity-expansion / billion-laughs (rejected - `test/junit-stream.test.js`). Not a property-based fuzzer; a handful of targeted adversarial fixtures.
 - [x] Nightly load test: synthetic 100k / 1M generators, assert peak RSS + wall time (E1: `.github/workflows/load-test.yml`).
 - [ ] Golden-file tests for `buildPayload`; `--dry-run` snapshot per fixture.
 
@@ -138,15 +138,15 @@ to `passed` / `failed` cases; give metrics a real home.
 
 ## E10 — Observability · P2 · S
 
-- [ ] `--log-format json` — one JSON object per line to stderr for CI log processors.
-- [ ] `--debug-bundle <path>` — redacted tarball (resolved config, discovered files, parse counts, HTTP timeline) for bug reports.
-- [ ] Timing breakdown in the summary (discover / parse / upload ms).
-- [ ] TTY-aware progress line for large uploads (`1,240,000 / 1,500,000 · batch 2480/3000`); off under `--output json` / non-TTY.
+- [x] `--log-format json` — one JSON object per line (`{level, msg, ts}`), same stdout/stderr routing as text mode.
+- [x] `--debug-bundle <path>` — a redacted **JSON** snapshot (resolved config, discovered files, parse summary, timings, the error if the run failed) for bug reports. Not literally a tarball, despite the flag name matching the original ask - simpler, and everything in it is already text.
+- [x] Timing breakdown — `publishTestReports` returns `timings: {discoverMs, parseMs, uploadMs}` (also logged at debug level, and included in `--debug-bundle`).
+- [ ] TTY-aware progress line for large uploads. Not done - there's only one upload request today (E2 not shipped), so there's no discrete upload progress to show; a parse-progress line (`150,000 / 1,000,000 cases`) would be the more useful version of this until E2 lands.
 
 ## E11 — Docs · P2 · M
 
-- [ ] Split the README: keep quick-start; move the config table, Playwright detail and CI recipes into `docs/`.
-- [ ] Copy-paste CI recipes: GitHub Actions, GitLab, CircleCI, Jenkins, Bitbucket.
+- [ ] Split the README: it's grown with every wave (Playwright section, full config table, security, programmatic API); still one file. Not done - it's organised with clear headers and cross-links to `docs/`, but hasn't been physically split.
+- [x] Copy-paste CI recipes: `docs/ci-recipes.md` — GitHub Actions, GitLab, CircleCI, Jenkins, Bitbucket, generic; publish-on-failure and gate-the-build notes.
 - [x] `docs/architecture.md` — the discover→parse→transform→transport pipeline.
 - [ ] `docs/adr/` — record the SAX choice, protocol v2, the `xlsx` decision. Not done; `docs/api-contract.md` and this file's own history cover the reasoning informally for now.
 - [x] `docs/scaling.md` — the numbers, the caps. (`--resume` itself is still E2, not shipped.)

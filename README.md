@@ -129,6 +129,8 @@ attempt.
 
 **Exit codes:** `0` ok · `1` error (config / parse / upload) · `2` `--fail-on-empty` · `3` `--fail-on-failed`. A successful publish is `0` even when tests failed unless you opt into a stricter gate.
 
+**Debugging:** `--log-format json` emits one JSON object per log line; `--debug-bundle <path>` writes a redacted JSON snapshot (config, discovered files, parse summary, timings) for a bug report. CI setup examples: [docs/ci-recipes.md](docs/ci-recipes.md).
+
 ---
 
 ## Project Structure
