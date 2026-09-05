@@ -71,6 +71,7 @@ Everything below assumes a known server contract. The `dashboard-api` repo's
 - [x] `npm publish --provenance` (release workflow).
 - [x] `npm audit --audit-level=high` is a **real, required gate** now (`npm ci --omit=optional`, so `xlsx`'s unfixed advisories don't block it); `xlsx` itself is audited separately as a non-blocking warning.
 - [x] `engine-strict=true` in `.npmrc`; GitHub Action refs pinned to commit SHAs (checkout, setup-node, action-gh-release).
+- [ ] `cheerio` is pinned to the exact `1.1.0` (not `^1.1.0`) because every later 1.x patch (`1.1.1`+, current latest `1.2.0`) raised its own `engines.node` to `>=20.18.1` - a caret range would silently reintroduce the Node 18 breakage on the next `npm install`/Dependabot bump. Revisit this pin if the Node 18 floor is ever dropped, or if upstream ships a patch that restores `>=18.17` support. `"overrides": { "undici": "^6.28.1" }` similarly dedupes cheerio's own nested `undici@^7` copy - remove it if cheerio drops that dependency or lowers its own floor.
 
 ## E5 — CI / release engineering · P0 · M
 

@@ -249,13 +249,27 @@ _Found by a multi-angle `/code-review` pass over this branch's diff._
   `destroyStream()` to `src/parsers/shared.js`, which waits for the stream's
   `close` event before resolving, and awaited it in all five streaming XML
   readers' error paths instead of firing `destroy()` and rethrowing immediately.
-- **`npm ci` still failed on Node 18.18 after raising the floor above**:
-  `c8@12` requires Node `^20.19.0 || ^22.12.0 || >=23` - a devDependency, so
-  `engine-strict` blocked every job's install regardless of whether that job
-  ever runs `test:coverage`. Node 18 has no supported `c8@12` release at all
-  (11.x needs `20 || >=22` too); downgraded to `c8@^10.1.3`, the last major
-  supporting `>=18`. Verified identical coverage output/gate behaviour before
-  and after the downgrade.
+- **`npm ci` still failed on Node 18.18 after raising the floor above**, and
+  took two more rounds to fully run down, because `engine-strict` checks
+  every package actually resolved in the tree - including nested,
+  never-imported-on-this-path copies:
+  - `c8@12` itself requires Node `^20.19.0 || ^22.12.0 || >=23` (11.x needs
+    `20 || >=22` too, so no 18-compatible release exists above 10.x); its own
+    `>=18` transitive chain (`test-exclude@7` → `minimatch@10` →
+    `brace-expansion@5.x`, all `20 || >=22`-only) turned out to be just as
+    broken. Landed on `c8@^9.1.0`, which pulls the older
+    `test-exclude@6`/`glob@7`/`minimatch@3` chain with no elevated floor
+    anywhere in it - verified with a semver check of every package in the
+    resolved lockfile against `18.18.0`, not just `c8`'s own `engines` field.
+  - `cheerio` bundles its own nested `undici` dependency (`^7.10.0`,
+    unaffected by overriding testrix's own top-level `undici`) and, separately,
+    raised its _own_ declared `engines.node` to `>=20.18.1` starting at
+    `1.1.1` (still true as of the current `1.2.0`) - so `^1.1.0` silently
+    resolved to a floor-incompatible patch on every fresh install. Added
+    `"overrides": { "undici": "^6.28.1" }` to dedupe the nested copy, and
+    pinned `cheerio` to the exact `1.1.0` (the last patch declaring `>=18.17`)
+    instead of a caret range, since a caret can't protect against a later
+    patch silently raising the floor again.
 
 ## [1.2.0]
 
