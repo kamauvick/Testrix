@@ -234,13 +234,13 @@ _Found by a multi-angle `/code-review` pass over this branch's diff._
   regardless of the runner's `core.autocrlf`.
 - **`npm ci` failed on Node 18.17 even after the `undici` downgrade above**:
   `eslint@9` (via `@eslint/config-array`) actually requires Node `^18.18.0 ||
-  ^20.9.0 || >=21.1.0` - 18.17.1 was never a version its own toolchain
+^20.9.0 || >=21.1.0` - 18.17.1 was never a version its own toolchain
   supported, despite `engines.node`/the CI matrix claiming it. Raised the
   declared minimum to `>=18.18.0` (`package.json`, the CI matrix, `README.md`,
   `CONTRIBUTING.md`) to match what's actually installable.
 - **A JUnit/TestNG/NUnit3/`.trx`/JMeter-XML parse error left the source file
   locked on Windows just long enough to break a caller that deletes it right
-  away**: `rs.destroy()` only *starts* tearing down the read stream - the
+  away**: `rs.destroy()` only _starts_ tearing down the read stream - the
   underlying file descriptor is released asynchronously, on a later tick.
   Linux permits removing a directory while one of its files is still open, so
   this raced invisibly there; Windows doesn't, so
@@ -249,6 +249,13 @@ _Found by a multi-angle `/code-review` pass over this branch's diff._
   `destroyStream()` to `src/parsers/shared.js`, which waits for the stream's
   `close` event before resolving, and awaited it in all five streaming XML
   readers' error paths instead of firing `destroy()` and rethrowing immediately.
+- **`npm ci` still failed on Node 18.18 after raising the floor above**:
+  `c8@12` requires Node `^20.19.0 || ^22.12.0 || >=23` - a devDependency, so
+  `engine-strict` blocked every job's install regardless of whether that job
+  ever runs `test:coverage`. Node 18 has no supported `c8@12` release at all
+  (11.x needs `20 || >=22` too); downgraded to `c8@^10.1.3`, the last major
+  supporting `>=18`. Verified identical coverage output/gate behaviour before
+  and after the downgrade.
 
 ## [1.2.0]
 
