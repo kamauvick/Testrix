@@ -232,6 +232,23 @@ _Found by a multi-angle `/code-review` pass over this branch's diff._
   enforces LF - every file looked "unformatted" without actually being so.
   Added `.gitattributes` (`* text=auto eol=lf`) to force LF on checkout
   regardless of the runner's `core.autocrlf`.
+- **`npm ci` failed on Node 18.17 even after the `undici` downgrade above**:
+  `eslint@9` (via `@eslint/config-array`) actually requires Node `^18.18.0 ||
+  ^20.9.0 || >=21.1.0` - 18.17.1 was never a version its own toolchain
+  supported, despite `engines.node`/the CI matrix claiming it. Raised the
+  declared minimum to `>=18.18.0` (`package.json`, the CI matrix, `README.md`,
+  `CONTRIBUTING.md`) to match what's actually installable.
+- **A JUnit/TestNG/NUnit3/`.trx`/JMeter-XML parse error left the source file
+  locked on Windows just long enough to break a caller that deletes it right
+  away**: `rs.destroy()` only *starts* tearing down the read stream - the
+  underlying file descriptor is released asynchronously, on a later tick.
+  Linux permits removing a directory while one of its files is still open, so
+  this raced invisibly there; Windows doesn't, so
+  `test('a JUnit report with DTD entity definitions is rejected')`'s
+  `fs.rmSync(dir, { recursive: true })` cleanup failed with `ENOTEMPTY`. Added
+  `destroyStream()` to `src/parsers/shared.js`, which waits for the stream's
+  `close` event before resolving, and awaited it in all five streaming XML
+  readers' error paths instead of firing `destroy()` and rethrowing immediately.
 
 ## [1.2.0]
 

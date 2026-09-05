@@ -10,6 +10,7 @@ const {
   emptySummary,
   accumulate,
   makeCase,
+  destroyStream,
 } = require('./shared');
 const { clampField } = require('../limits');
 
@@ -141,7 +142,7 @@ async function* streamTestNG(filePath, acc = {}) {
     }
     reader.end();
   } catch (err) {
-    rs.destroy();
+    await destroyStream(rs);
     throw err;
   }
   for (const rec of reader.drain()) yield rec;

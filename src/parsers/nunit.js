@@ -11,6 +11,7 @@ const {
   accumulate,
   makeCase,
   secondsToMs,
+  destroyStream,
 } = require('./shared');
 const { clampField } = require('../limits');
 
@@ -125,7 +126,7 @@ async function* streamNUnit(filePath, acc = {}) {
     }
     reader.end();
   } catch (err) {
-    rs.destroy();
+    await destroyStream(rs);
     throw err;
   }
   for (const rec of reader.drain()) yield rec;

@@ -74,7 +74,7 @@ Everything below assumes a known server contract. The `dashboard-api` repo's
 
 ## E5 — CI / release engineering · P0 · M
 
-- [x] `.github/workflows/ci.yml`: lint + format check + `npm test` + coverage + `npm audit`, matrix Node 18.17/20/22 on Linux **and Windows**.
+- [x] `.github/workflows/ci.yml`: lint + format check + `npm test` + coverage + `npm audit`, matrix Node 18.18/20/22 on Linux **and Windows**.
 - [x] `release.yml`: on tag → `npm publish --provenance` + GitHub release, with a tag/version guard.
 - [x] `CHANGELOG.md` (Keep a Changelog); `1.2.0 → Unreleased` delta captured.
 - [x] `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`, `CODE_OF_CONDUCT.md`, issue/PR templates.

@@ -15,7 +15,7 @@ If you change the shape of anything exported from `src/index.js` (new export,
 changed return shape, new option), update `src/index.d.ts` to match and rerun
 `npm run types:check`.
 
-Requires Node.js >= 18.17.
+Requires Node.js >= 18.18.
 
 ## Working on the code
 

@@ -3,7 +3,14 @@
 const fs = require('node:fs');
 const { SaxesParser } = require('saxes');
 
-const { stripAnsi, sanitizeXmlChunk, emptySummary, accumulate, makeCase } = require('./shared');
+const {
+  stripAnsi,
+  sanitizeXmlChunk,
+  emptySummary,
+  accumulate,
+  makeCase,
+  destroyStream,
+} = require('./shared');
 const { clampField } = require('../limits');
 
 const OUTCOME_MAP = { Passed: 'passed', Failed: 'failed', NotExecuted: 'skipped' };
@@ -146,7 +153,7 @@ async function* streamTrx(filePath, acc = {}) {
     }
     reader.end();
   } catch (err) {
-    rs.destroy();
+    await destroyStream(rs);
     throw err;
   }
   for (const rec of reader.drain()) yield rec;

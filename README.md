@@ -160,7 +160,7 @@ src/
 test/                   # node:test unit tests + fixtures
 ```
 
-**Requires Node.js >= 18.17** (uses the built-in `fetch` and test runner).
+**Requires Node.js >= 18.18** (uses the built-in `fetch` and test runner).
 
 **Note**: Testrix CLI does not manage a local database. It sends data to your configured server API, which is responsible for storage.
 

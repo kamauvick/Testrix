@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const readline = require('node:readline');
 const { SaxesParser } = require('saxes');
 
-const { emptySummary, accumulate } = require('./shared');
+const { emptySummary, accumulate, destroyStream } = require('./shared');
 const { clampField } = require('../limits');
 const { peek } = require('./sniff');
 
@@ -221,7 +221,7 @@ async function* streamJMeterXml(filePath, acc) {
     parser.close();
     if (error) throw error;
   } catch (err) {
-    rs.destroy();
+    await destroyStream(rs);
     throw err;
   }
 

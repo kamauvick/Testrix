@@ -11,6 +11,7 @@ const {
   sanitizeXmlChunk,
   makeCase,
   secondsToMs,
+  destroyStream,
 } = require('./shared');
 const { clampField, toInt } = require('../limits');
 
@@ -342,7 +343,7 @@ async function* streamJUnit(filePath, acc = {}) {
     reader.write(sanitizeXmlChunk(carry));
     reader.end();
   } catch (err) {
-    rs.destroy();
+    await destroyStream(rs);
     throw err;
   }
   for (const rec of reader.drain()) yield rec;

@@ -112,6 +112,26 @@ function makeCase(partial) {
 /** Seconds (JUnit/NUnit's native unit) to whole milliseconds (the pipeline's unit). */
 const secondsToMs = (value) => Math.round((parseFloat(value) || 0) * 1000);
 
+/**
+ * Destroy a readable stream and wait for its underlying file descriptor to
+ * actually be released before resolving. `stream.destroy()` only *starts*
+ * teardown - the real close happens asynchronously on a later tick. On Linux,
+ * unlinking/removing a directory while one of its files is still open
+ * succeeds anyway, so the race was invisible there; on Windows the OS holds
+ * the file locked until the fd is released, and a caller that cleans up its
+ * temp dir right after a stream error rejects gets `EPERM`/`ENOTEMPTY`.
+ */
+function destroyStream(stream) {
+  return new Promise((resolve) => {
+    if (stream.destroyed) {
+      resolve();
+      return;
+    }
+    stream.once('close', resolve);
+    stream.destroy();
+  });
+}
+
 module.exports = {
   emptySummary,
   normaliseStatus,
@@ -122,4 +142,5 @@ module.exports = {
   asArray,
   makeCase,
   secondsToMs,
+  destroyStream,
 };
