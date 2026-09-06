@@ -245,10 +245,14 @@ _Found by a multi-angle `/code-review` pass over this branch's diff._
   Linux permits removing a directory while one of its files is still open, so
   this raced invisibly there; Windows doesn't, so
   `test('a JUnit report with DTD entity definitions is rejected')`'s
-  `fs.rmSync(dir, { recursive: true })` cleanup failed with `ENOTEMPTY`. Added
-  `destroyStream()` to `src/parsers/shared.js`, which waits for the stream's
-  `close` event before resolving, and awaited it in all five streaming XML
-  readers' error paths instead of firing `destroy()` and rethrowing immediately.
+  `fs.rmSync(dir, { recursive: true })` cleanup failed with `ENOTEMPTY` on
+  Node 18/20 (Node 22+ waits for the fd itself). Added `destroyStream()` to
+  `src/parsers/shared.js`, which waits for the stream's `close` event before
+  resolving, and awaited it in all five streaming XML readers' error paths
+  instead of firing `destroy()` and rethrowing immediately. It keys the "done"
+  check on `stream.closed` (fd released), not `stream.destroyed` - the latter
+  flips to `true` synchronously as soon as the `for await` loop's own abrupt
+  -completion cleanup calls `.destroy()`, well before the fd is actually gone.
 - **`npm ci` still failed on Node 18.18 after raising the floor above**, and
   took two more rounds to fully run down, because `engine-strict` checks
   every package actually resolved in the tree - including nested,

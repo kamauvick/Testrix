@@ -114,21 +114,25 @@ const secondsToMs = (value) => Math.round((parseFloat(value) || 0) * 1000);
 
 /**
  * Destroy a readable stream and wait for its underlying file descriptor to
- * actually be released before resolving. `stream.destroy()` only *starts*
- * teardown - the real close happens asynchronously on a later tick. On Linux,
- * unlinking/removing a directory while one of its files is still open
- * succeeds anyway, so the race was invisible there; on Windows the OS holds
- * the file locked until the fd is released, and a caller that cleans up its
- * temp dir right after a stream error rejects gets `EPERM`/`ENOTEMPTY`.
+ * actually be released (`close` emitted) before resolving. `stream.destroy()`
+ * only *starts* teardown - the real close happens on a later tick, and
+ * `stream.destroyed` flips to `true` synchronously well before then. When a
+ * `for await` loop body throws, the loop's own cleanup already calls
+ * `.destroy()`, so keying on `destroyed` here would skip the wait entirely;
+ * `stream.closed` is what actually tracks the fd. On Linux, removing a
+ * directory whose file is still open succeeds anyway, so this raced
+ * invisibly there; on Windows the OS keeps the file locked until the fd is
+ * released, and a caller that cleans up its temp dir right after a stream
+ * error rejects gets `EPERM`/`ENOTEMPTY`.
  */
 function destroyStream(stream) {
   return new Promise((resolve) => {
-    if (stream.destroyed) {
+    if (stream.closed) {
       resolve();
       return;
     }
     stream.once('close', resolve);
-    stream.destroy();
+    if (!stream.destroyed) stream.destroy();
   });
 }
 
