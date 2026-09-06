@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="3" result="Failed" total="3" passed="1" failed="1" inconclusive="0" skipped="1">
+  <test-suite type="Assembly" name="Tests.dll" result="Failed">
+    <test-suite type="TestFixture" name="LoginTests" result="Failed">
+      <test-case id="1" name="LoginSucceeds" fullname="NS.LoginTests.LoginSucceeds" classname="NS.LoginTests" result="Passed" duration="0.045"/>
+      <test-case id="2" name="LoginFailsWithBadPassword" fullname="NS.LoginTests.LoginFailsWithBadPassword" classname="NS.LoginTests" result="Failed" duration="0.012">
+        <failure>
+          <message><![CDATA[Expected: True But was: False]]></message>
+          <stack-trace><![CDATA[at NS.LoginTests.LoginFailsWithBadPassword() in LoginTests.cs:line 30]]></stack-trace>
+        </failure>
+      </test-case>
+      <test-case id="3" name="LoginWithSso" fullname="NS.LoginTests.LoginWithSso" classname="NS.LoginTests" result="Skipped" duration="0"/>
+    </test-suite>
+  </test-suite>
+</test-run>

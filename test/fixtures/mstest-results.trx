@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestRun id="a1b2c3" name="dotnet test" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Results>
+    <UnitTestResult testId="t1" testName="LoginTests.LoginSucceeds" duration="00:00:00.0450000" outcome="Passed" />
+    <UnitTestResult testId="t2" testName="LoginTests.LoginFailsWithBadPassword" duration="00:00:00.0120000" outcome="Failed">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.IsTrue failed.</Message>
+          <StackTrace>at LoginTests.LoginFailsWithBadPassword() in LoginTests.cs:line 30</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testId="t3" testName="LoginTests.LoginWithSso" duration="00:00:00" outcome="NotExecuted" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="LoginSucceeds" id="t1">
+      <TestMethod className="NS.LoginTests" name="LoginSucceeds" />
+    </UnitTest>
+    <UnitTest name="LoginFailsWithBadPassword" id="t2">
+      <TestMethod className="NS.LoginTests" name="LoginFailsWithBadPassword" />
+    </UnitTest>
+    <UnitTest name="LoginWithSso" id="t3">
+      <TestMethod className="NS.LoginTests" name="LoginWithSso" />
+    </UnitTest>
+  </TestDefinitions>
+</TestRun>

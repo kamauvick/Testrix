@@ -1,0 +1,5 @@
+timeStamp,elapsed,label,responseCode,responseMessage,threadName,dataType,success,failureMessage,bytes,sentBytes,grpThreads,allThreads,URL,Latency,IdleTime,Connect
+1798000000000,120,Home Page,200,OK,Thread Group 1-1,text,true,,1024,128,1,1,http://example.com/,110,0,5
+1798000000200,95,Home Page,200,OK,Thread Group 1-1,text,true,,1024,128,1,1,http://example.com/,90,0,3
+1798000000400,310,Checkout,500,Internal Server Error,Thread Group 1-1,text,false,"Assertion failed, expected 200 got 500",512,96,1,1,http://example.com/checkout,300,0,4
+1798000000700,150,Checkout,200,OK,Thread Group 1-1,text,true,,1024,128,1,1,http://example.com/checkout,140,0,4

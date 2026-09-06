@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testResults version="1.2">
+  <httpSample t="120" it="0" lt="110" ts="1798000000000" s="true" lb="Home Page" rc="200" rm="OK" tn="Thread Group 1-1" dt="text" by="1024"/>
+  <httpSample t="95" it="0" lt="90" ts="1798000000200" s="true" lb="Home Page" rc="200" rm="OK" tn="Thread Group 1-1" dt="text" by="1024"/>
+  <httpSample t="310" it="0" lt="300" ts="1798000000400" s="false" lb="Checkout" rc="500" rm="Internal Server Error" tn="Thread Group 1-1" dt="text" by="512">
+    <assertionResult>
+      <name>Response Assertion</name>
+      <failure>true</failure>
+      <failureMessage>Assertion failed, expected 200 got 500</failureMessage>
+    </assertionResult>
+  </httpSample>
+  <httpSample t="150" it="0" lt="140" ts="1798000000700" s="true" lb="Checkout" rc="200" rm="OK" tn="Thread Group 1-1" dt="text" by="1024"/>
+</testResults>

@@ -1,0 +1,177 @@
+{
+  "config": {
+    "rootDir": "/repo",
+    "projects": [
+      {
+        "name": "chromium"
+      },
+      {
+        "name": "firefox"
+      }
+    ],
+    "version": "1.55.0"
+  },
+  "suites": [
+    {
+      "title": "tests/login.spec.ts",
+      "file": "tests/login.spec.ts",
+      "line": 0,
+      "column": 0,
+      "specs": [
+        {
+          "title": "succeeds",
+          "ok": true,
+          "tags": [],
+          "line": 5,
+          "column": 3,
+          "tests": [
+            {
+              "timeout": 30000,
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "status": "expected",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "status": "passed",
+                  "duration": 1234,
+                  "retry": 0,
+                  "startTime": "2026-09-04T10:00:00.000Z",
+                  "attachments": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "errors": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "suites": [
+        {
+          "title": "error handling",
+          "specs": [
+            {
+              "title": "shows error on bad password",
+              "ok": false,
+              "line": 12,
+              "column": 3,
+              "tests": [
+                {
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "status": "unexpected",
+                  "results": [
+                    {
+                      "status": "failed",
+                      "duration": 845,
+                      "retry": 0,
+                      "error": {
+                        "message": "\u001b[31mError:\u001b[39m expect(received).toBeVisible()",
+                        "stack": "Error: expect(received).toBeVisible()\n    at tests/login.spec.ts:14:40",
+                        "snippet": "  14 |   await expect(err).toBeVisible()"
+                      },
+                      "errors": [
+                        {
+                          "message": "Error: expect(received).toBeVisible()"
+                        }
+                      ],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "test-results/login-error/test-failed-1.png"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "test-results/login-error/trace.zip"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "trying login\n"
+                        }
+                      ],
+                      "stderr": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "tests/checkout.spec.ts",
+      "file": "tests/checkout.spec.ts",
+      "specs": [
+        {
+          "title": "retries then passes",
+          "ok": true,
+          "line": 8,
+          "column": 3,
+          "tests": [
+            {
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "status": "flaky",
+              "results": [
+                {
+                  "status": "failed",
+                  "duration": 500,
+                  "retry": 0,
+                  "error": {
+                    "message": "flake"
+                  },
+                  "errors": [
+                    {
+                      "message": "flake"
+                    }
+                  ],
+                  "attachments": []
+                },
+                {
+                  "status": "passed",
+                  "duration": 1200,
+                  "retry": 1,
+                  "attachments": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "is skipped on CI",
+          "ok": true,
+          "line": 20,
+          "column": 3,
+          "tests": [
+            {
+              "projectId": "firefox",
+              "projectName": "firefox",
+              "status": "skipped",
+              "results": [
+                {
+                  "status": "skipped",
+                  "duration": 0,
+                  "attachments": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-04T10:00:00.000Z",
+    "duration": 6000,
+    "expected": 2,
+    "unexpected": 1,
+    "flaky": 1,
+    "skipped": 1
+  }
+}

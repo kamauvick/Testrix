@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="vitest tests" tests="3" failures="1" errors="0" time="1.234">
+  <testsuite name="src/math.test.ts" timestamp="2024-01-01T00:00:00" hostname="local" tests="3" failures="1" errors="0" skipped="1" time="1.234">
+    <testcase classname="src/math.test.ts" name="adds numbers" time="0.01"></testcase>
+    <testcase classname="src/math.test.ts" name="subtracts numbers" time="0.02">
+      <failure message="expected 1 to be 2">AssertionError: expected 1 to be 2
+    at Object.&lt;anonymous&gt; (src/math.test.ts:12:20)</failure>
+    </testcase>
+    <testcase classname="src/math.test.ts" name="skipped case" time="0">
+      <skipped/>
+    </testcase>
+  </testsuite>
+</testsuites>
