@@ -32,7 +32,7 @@
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
-    "cheerio": "1.1.0",
+    "cheerio": "1.2.0",
     "saxes": "^6.0.0",
     "stream-json": "^1.9.1",
     "undici": "^6.28.1"
