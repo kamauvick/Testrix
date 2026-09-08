@@ -213,9 +213,11 @@ config-file equivalent:
   that would drop the request body (301/302/303), is refused rather than
   silently followed.
 - Uploads honour `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`.
-- `.xls`/`.xlsx` support needs the optional `xlsx` package
-  (`npm install xlsx`) - kept optional because it carries advisories with no
-  upstream fix; the rest of Testrix installs `npm audit`-clean.
+- `.xls`/`.xlsx` support needs the `xlsx` package, which is **not** bundled -
+  run `npm install xlsx` in your project to enable it. It's kept out of
+  Testrix's dependency tree because it carries advisories with no upstream
+  fix; leaving it out means a plain `npm install testrix-cli` is
+  `npm audit`-clean.
 - Report vulnerabilities per [SECURITY.md](SECURITY.md).
 
 ### Development

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-08
+
+First npm release of the reworked CLI (the registry previously topped out at
+`1.0.9`; `1.2.0` was an internal baseline that was never published). Every
+change below is against that baseline, and none of it is breaking - the
+`loadConfig` / `publishTestReports` API and the `config.json` flow are
+unchanged.
+
 ### Added
 
 - **Seven new report formats**, with content-based dispatch so `.xml`/`.json`
@@ -277,7 +285,9 @@ _Found by a multi-angle `/code-review` pass over this branch's diff._
 
 ## [1.2.0]
 
-- Baseline: parse JUnit / HTML / Excel reports and publish to the dashboard API.
+- Internal baseline (never published to npm): parse JUnit / HTML / Excel
+  reports and publish to the dashboard API.
 
-[unreleased]: https://github.com/kamauvick/Testrix/compare/v1.2.0...HEAD
+[unreleased]: https://github.com/kamauvick/Testrix/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/kamauvick/Testrix/compare/v1.0.9...v1.3.0
 [1.2.0]: https://github.com/kamauvick/Testrix/releases/tag/v1.2.0

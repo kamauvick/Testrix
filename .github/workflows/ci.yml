@@ -55,13 +55,11 @@ jobs:
         with:
           node-version: '20'
           cache: npm
-      # `xlsx` (optional; needed only for .xls/.xlsx reports) carries advisories
-      # with no upstream fix - exclude it from the required gate and audit it
-      # separately, informationally. `npm audit` reads package-lock.json's full
-      # tree regardless of what --omit skipped at install time, so the flag has
-      # to be repeated on the audit command itself or xlsx's advisories leak
-      # into the required gate anyway.
-      - run: npm ci --omit=optional
-      - run: npm audit --audit-level=high --omit=optional
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      # `xlsx` (needed only for .xls/.xlsx reports) is not in the dependency
+      # tree - it carries advisories with no upstream fix, so users opt in with
+      # `npm install xlsx`. Audit it here separately, informationally, so a
+      # future upstream fix (or new advisory) is still visible in CI.
       - run: npm install --no-save xlsx
       - run: npm audit --audit-level=high || echo "::warning::xlsx has known, unfixed advisories - see TODO.md E4"

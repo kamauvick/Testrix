@@ -1,7 +1,7 @@
 {
   "name": "testrix-cli",
-  "version": "1.2.0",
-  "description": "Parse JUnit, Playwright, HTML and Excel test reports and publish them to a Testrix dashboard API.",
+  "version": "1.3.0",
+  "description": "Parse test reports (JUnit, Playwright, TestNG, NUnit3, .trx, Mochawesome, CTRF, TAP, k6, JMeter, HTML, Excel) and publish the results to a Testrix dashboard API.",
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "bin": {
@@ -14,7 +14,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "types:check": "tsc --noEmit --strict --skipLibCheck src/index.d.ts"
+    "types:check": "tsc --noEmit --strict --skipLibCheck src/index.d.ts",
+    "prepublishOnly": "npm run lint && npm run format:check && npm run types:check && npm test"
   },
   "keywords": [
     "cli",
@@ -36,9 +37,6 @@
     "stream-json": "^1.9.1",
     "undici": "^6.28.1"
   },
-  "optionalDependencies": {
-    "xlsx": "^0.18.5"
-  },
   "overrides": {
     "undici": "^6.28.1"
   },
@@ -55,7 +53,8 @@
   "files": [
     "cli.js",
     "config.schema.json",
-    "src/"
+    "src/",
+    "CHANGELOG.md"
   ],
   "repository": {
     "type": "git",

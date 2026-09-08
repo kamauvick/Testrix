@@ -21,3 +21,6 @@ node_modules/
 
 config.json
 frontend-junit.xml
+
+# npm pack output
+*.tgz

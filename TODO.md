@@ -65,11 +65,11 @@ Everything below assumes a known server contract. The `dashboard-api` repo's
 ## E4 — Supply chain & dependencies · P0 · M
 
 - [x] Drop `xml2js` (maintenance-only, prior prototype-pollution CVE) — replaced by `saxes` (E1).
-- [ ] `xlsx@0.18.5` is the last npm-registry SheetJS release and carries unpatched advisories (`npm audit` flags it forever). Move Excel to `exceljs` (streaming, maintained) **and/or** `optionalDependencies`.
-- [x] Lazy-`require` `cheerio` and `xlsx` — loaded only when an `.html` / `.xls(x)` file is parsed; `xlsx` moved to `optionalDependencies` with a clear install-hint error when it's missing.
+- [ ] `xlsx@0.18.5` is the last npm-registry SheetJS release and carries unpatched advisories (`npm audit` flags it forever). Longer term, move Excel to `exceljs` (streaming, maintained). For now it's out of the dependency tree entirely (see below).
+- [x] Lazy-`require` `cheerio` and `xlsx` — loaded only when an `.html` / `.xls(x)` file is parsed. `xlsx` is **not** a dependency at all (not even `optionalDependencies`, which still auto-installs): users run `npm install xlsx` themselves, and `excel.js` gives a clear install-hint error if it's missing. This keeps a plain `npm install testrix-cli` `npm audit`-clean for consumers.
 - [x] `package-lock.json` committed; `npm ci` in CI.
-- [x] `npm publish --provenance` (release workflow).
-- [x] `npm audit --audit-level=high` is a **real, required gate** now (`npm ci --omit=optional`, so `xlsx`'s unfixed advisories don't block it); `xlsx` itself is audited separately as a non-blocking warning.
+- [x] `npm publish --provenance` (release workflow, triggered by a `v*` tag).
+- [x] `npm audit --audit-level=high` is a **real, required gate** now; `xlsx` is audited separately, informationally, via an ad-hoc `npm install --no-save xlsx` in the same job.
 - [x] `engine-strict=true` in `.npmrc`; GitHub Action refs pinned to commit SHAs (checkout, setup-node, action-gh-release).
 - [ ] `cheerio` is pinned to the exact `1.1.0` (not `^1.1.0`) because every later 1.x patch (`1.1.1`+, current latest `1.2.0`) raised its own `engines.node` to `>=20.18.1` - a caret range would silently reintroduce the Node 18 breakage on the next `npm install`/Dependabot bump. Revisit this pin if the Node 18 floor is ever dropped, or if upstream ships a patch that restores `>=18.17` support. `"overrides": { "undici": "^6.28.1" }` similarly dedupes cheerio's own nested `undici@^7` copy - remove it if cheerio drops that dependency or lowers its own floor.
 
