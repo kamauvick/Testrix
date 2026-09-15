@@ -45,7 +45,7 @@ export interface TestCaseRecord {
   line: number | null;
   retries: number;
   flaky: boolean;
-  attachments: Array<{ name: string; path: string | null; contentType?: string }>;
+  attachments: Array<{ name: string; path: string | null; body?: string | null; contentType?: string }>;
   stdout: string;
   stderr: string;
   /** Present on load-tool records (k6, JMeter); absent elsewhere. */

@@ -42,6 +42,9 @@ function mapAttachments(rawAttachments) {
       name: att.name || '',
       contentType: att.contentType || '',
       path: att.path || null,
+      // Small text attachments (e.g. a captured page state) are inlined by
+      // Playwright's JSON reporter as base64 rather than written to disk.
+      body: att.path ? null : att.body || null,
     });
   }
   return attachments;

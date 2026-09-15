@@ -15,6 +15,9 @@ const {
 const { isGlob, expandAll } = require('./glob');
 const { submitReport, deriveRunUrl } = require('./http');
 const { redactUrl } = require('./redact');
+const { clampField } = require('./limits');
+
+const PAGE_SNAPSHOT_MAX_CHARS = 4000;
 
 const REPORT_EXTENSIONS = new Set([
   '.xml',
@@ -256,6 +259,24 @@ function pickArtifacts(attachments) {
   return out;
 }
 
+/**
+ * Pull the actual rendered page text a test captured on failure (see
+ * `page-snapshot` attachments in e2e/smoke.spec.js), so the dashboard's AI
+ * analysis has ground truth to compare against the expected value - not just
+ * "element not found", which says nothing about what *was* there instead.
+ */
+function pickPageSnapshot(attachments) {
+  const att = (attachments || []).find(
+    (a) => a && a.name === 'page-snapshot' && a.body && String(a.contentType || '').startsWith('text/'),
+  );
+  if (!att) return null;
+  try {
+    return clampField(Buffer.from(att.body, 'base64').toString('utf8'), PAGE_SNAPSHOT_MAX_CHARS);
+  } catch {
+    return null;
+  }
+}
+
 /** Build the request body the dashboard API expects. */
 function buildPayload(config, { testCases, suites, startTime, endTime }) {
   const now = new Date().toISOString();
@@ -290,6 +311,8 @@ function buildPayload(config, { testCases, suites, startTime, endTime }) {
       if (art.screenshot) out.screenshot = art.screenshot;
       if (art.video) out.video = art.video;
       if (art.trace) out.trace = art.trace;
+      const pageSnapshot = pickPageSnapshot(tc.attachments);
+      if (pageSnapshot) out.pageSnapshot = pageSnapshot;
       return out;
     }),
   };
