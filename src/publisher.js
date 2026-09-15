@@ -267,7 +267,8 @@ function pickArtifacts(attachments) {
  */
 function pickPageSnapshot(attachments) {
   const att = (attachments || []).find(
-    (a) => a && a.name === 'page-snapshot' && a.body && String(a.contentType || '').startsWith('text/'),
+    (a) =>
+      a && a.name === 'page-snapshot' && a.body && String(a.contentType || '').startsWith('text/'),
   );
   if (!att) return null;
   try {
